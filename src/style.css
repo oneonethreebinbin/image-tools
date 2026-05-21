@@ -1,0 +1,371 @@
+/* ========== Reset & Base ========== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --primary: #4F46E5;
+  --primary-hover: #4338CA;
+  --primary-light: #EEF2FF;
+  --success: #059669;
+  --success-light: #ECFDF5;
+  --danger: #DC2626;
+  --danger-light: #FEF2F2;
+  --text: #1F2937;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --bg: #F3F4F6;
+  --bg-card: #FFFFFF;
+  --border: #E5E7EB;
+  --border-focus: #4F46E5;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  border: none;
+  outline: none;
+}
+
+input, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* ========== Utility ========== */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ========== Button Styles ========== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+.btn-primary:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+.btn-secondary:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+.btn-success:hover {
+  background: #047857;
+}
+
+.btn-sm {
+  padding: 6px 16px;
+  font-size: 0.8125rem;
+}
+
+/* ========== Card ========== */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+/* ========== Drop Zone ========== */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  background: var(--bg-card);
+}
+.drop-zone:hover,
+.drop-zone.dragover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.drop-zone-icon {
+  font-size: 3rem;
+  margin-bottom: 12px;
+  display: block;
+}
+.drop-zone-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.drop-zone-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+/* ========== Ad Slot ========== */
+.ad-slot {
+  background: #FAFAFA;
+  border: 1px dashed #D1D5DB;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  overflow: hidden;
+}
+.ad-banner {
+  width: 100%;
+  height: 90px;
+  margin-bottom: 24px;
+}
+.ad-sidebar {
+  width: 300px;
+  min-height: 250px;
+  flex-shrink: 0;
+}
+.ad-inline {
+  width: 100%;
+  height: 100px;
+  margin: 24px 0;
+}
+
+/* ========== Slider ========== */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--primary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: var(--shadow);
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* ========== Select ========== */
+select {
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: white;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+select:focus {
+  border-color: var(--border-focus);
+}
+
+/* ========== File Size Badge ========== */
+.size-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.size-badge.original {
+  background: #FEF3C7;
+  color: #92400E;
+}
+.size-badge.compressed {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+/* ========== Canvas Container ========== */
+.canvas-wrapper {
+  position: relative;
+  display: inline-block;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  cursor: crosshair;
+  max-width: 100%;
+}
+.canvas-wrapper img,
+.canvas-wrapper canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ========== Selection Overlay ========== */
+.selection-box {
+  position: absolute;
+  border: 2px solid var(--primary);
+  background: rgba(79, 70, 229, 0.15);
+  pointer-events: none;
+}
+
+/* ========== Toast / Alert ========== */
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.alert-info {
+  background: #EFF6FF;
+  color: #1E40AF;
+  border: 1px solid #BFDBFE;
+}
+.alert-success {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid #A7F3D0;
+}
+.alert-error {
+  background: var(--danger-light);
+  color: var(--danger);
+  border: 1px solid #FECACA;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+  .container {
+    padding: 0 12px;
+  }
+  .ad-banner {
+    height: 60px;
+  }
+  .main-layout {
+    flex-direction: column;
+  }
+  .ad-sidebar {
+    width: 100%;
+    min-height: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+  .container {
+    padding: 0 8px;
+  }
+  .btn {
+    padding: 12px 20px;
+    font-size: 1rem;
+    min-height: 44px;
+  }
+  .btn-sm {
+    padding: 8px 14px;
+    font-size: 0.875rem;
+    min-height: 36px;
+  }
+  .drop-zone {
+    padding: 32px 16px;
+  }
+  .drop-zone-icon {
+    font-size: 2.5rem;
+  }
+  .drop-zone-title {
+    font-size: 1rem;
+  }
+  input[type="range"] {
+    height: 8px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  select {
+    padding: 10px 12px;
+    min-height: 44px;
+  }
+}
+
+/* Touch-friendly click targets */
+.btn,
+.nav-tab,
+.method-option,
+.preset-btn,
+.drop-zone {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent text selection during touch interactions */
+.canvas-wrapper,
+.main-canvas {
+  user-select: none;
+  -webkit-user-select: none;
+}
