@@ -2,7 +2,7 @@
 import { ref, nextTick, watch, onMounted } from 'vue'
 
 // --- AI Backend ---
-const BACKEND_URL = 'https://viewmax-watermark-remover.hf.space/'
+const BACKEND_URL = 'https://viewmax-watermark-remover.hf.space'
 const useAI = ref(false)          // 是否启用 AI 模式
 const isAIProcessing = ref(false) // AI 处理中
 const aiAvailable = ref(false)    // 后端是否可用
@@ -38,15 +38,17 @@ let originalImageData = null // backup for undo
 async function checkAIBackend() {
   try {
     const res = await fetch(`${BACKEND_URL}/api/health`, {
-      signal: AbortSignal.timeout(3000)
+      signal: AbortSignal.timeout(10000)
     })
     if (res.ok) {
       aiAvailable.value = true
       console.log('[AI] 后端服务已连接')
+      return
     }
-  } catch {
-    aiAvailable.value = false
+  } catch (e) {
+    console.log('[AI] 健康检查失败:', e.message)
   }
+  aiAvailable.value = false
 }
 
 onMounted(() => {
