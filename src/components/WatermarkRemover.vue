@@ -2,7 +2,7 @@
 import { ref, nextTick, watch, onMounted } from 'vue'
 
 // --- AI Backend ---
-const BACKEND_URL = 'http://localhost:8765'
+const BACKEND_URL = 'https://viewmax-watermark-remover.hf.space/'
 const useAI = ref(false)          // 是否启用 AI 模式
 const isAIProcessing = ref(false) // AI 处理中
 const aiAvailable = ref(false)    // 后端是否可用
@@ -573,25 +573,13 @@ function clearSelection() {
   <div class="remover">
     <!-- Upload Step -->
     <div v-if="!originalImage" class="card upload-card">
-      <div
-        class="drop-zone"
-        :class="{ dragover: isDragOver }"
-        @click="triggerUpload"
-        @drop.prevent="onDrop"
-        @dragover.prevent="onDragOver"
-        @dragleave="onDragLeave"
-      >
+      <div class="drop-zone" :class="{ dragover: isDragOver }" @click="triggerUpload" @drop.prevent="onDrop"
+        @dragover.prevent="onDragOver" @dragleave="onDragLeave">
         <span class="drop-zone-icon">🖼️</span>
         <p class="drop-zone-title">拖拽图片到这里，或点击上传</p>
         <p class="drop-zone-hint">支持 JPEG · PNG · WebP · BMP · GIF</p>
       </div>
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/*"
-        hidden
-        @change="onFileChange"
-      />
+      <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChange" />
     </div>
 
     <!-- Error -->
@@ -608,28 +596,17 @@ function clearSelection() {
         </div>
         <div class="header-actions">
           <!-- AI 状态指示器 -->
-          <span
-            v-if="removeMethod === 'ai'"
-            class="ai-status"
+          <span v-if="removeMethod === 'ai'" class="ai-status"
             :class="{ 'ai-online': aiAvailable, 'ai-offline': !aiAvailable }"
-            :title="aiAvailable ? 'AI 后端已连接' : 'AI 后端未连接，将使用本地模式'"
-          >
+            :title="aiAvailable ? 'AI 后端已连接' : 'AI 后端未连接，将使用本地模式'">
             <span class="ai-dot"></span>
             {{ aiAvailable ? 'AI 就绪' : '离线模式' }}
           </span>
-          <button
-            v-if="hasSelection && !isProcessed"
-            class="btn btn-primary btn-sm"
-            :disabled="isAIProcessing"
-            @click="removeWatermark"
-          >
+          <button v-if="hasSelection && !isProcessed" class="btn btn-primary btn-sm" :disabled="isAIProcessing"
+            @click="removeWatermark">
             {{ isAIProcessing ? 'AI 处理中...' : '去除水印' }}
           </button>
-          <button
-            v-if="isProcessed"
-            class="btn btn-success btn-sm"
-            @click="download"
-          >
+          <button v-if="isProcessed" class="btn btn-success btn-sm" @click="download">
             ⬇ 下载结果
           </button>
           <button class="btn btn-secondary btn-sm" @click="reset">重新上传</button>
@@ -653,18 +630,9 @@ function clearSelection() {
         <!-- Canvas Area -->
         <div class="canvas-area" ref="wrapperRef">
           <div class="canvas-container" :style="{ maxWidth: '100%', overflow: 'auto' }">
-            <canvas
-              ref="canvasRef"
-              class="main-canvas"
-              :class="{ 'ai-processing': isAIProcessing }"
-              @mousedown="onMouseDown"
-              @mousemove="onMouseMove"
-              @mouseup="onMouseUp"
-              @mouseleave="onMouseUp"
-              @touchstart="onTouchStart"
-              @touchmove="onTouchMove"
-              @touchend="onTouchEnd"
-            ></canvas>
+            <canvas ref="canvasRef" class="main-canvas" :class="{ 'ai-processing': isAIProcessing }"
+              @mousedown="onMouseDown" @mousemove="onMouseMove" @mouseup="onMouseUp" @mouseleave="onMouseUp"
+              @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd"></canvas>
 
             <!-- AI 处理加载遮罩 -->
             <div v-if="isAIProcessing" class="ai-loading-overlay">
@@ -682,23 +650,14 @@ function clearSelection() {
           <div class="control-group">
             <label class="control-label">去除方式</label>
             <div class="method-options">
-              <label
-                v-for="method in [
-                  { id: 'ai', label: '🤖 AI 修复', desc: 'LaMa 深度学习模型智能修复' },
-                  { id: 'smart', label: '智能填充', desc: '浏览器本地边缘填充' },
-                  { id: 'blur', label: '模糊处理', desc: '模糊水印区域' },
-                  { id: 'crop', label: '裁剪', desc: '直接裁去该区域' }
-                ]"
-                :key="method.id"
-                class="method-option"
-                :class="{ active: removeMethod === method.id, 'ai-option': method.id === 'ai' }"
-              >
-                <input
-                  type="radio"
-                  :value="method.id"
-                  v-model="removeMethod"
-                  hidden
-                />
+              <label v-for="method in [
+                { id: 'ai', label: '🤖 AI 修复', desc: 'LaMa 深度学习模型智能修复' },
+                { id: 'smart', label: '智能填充', desc: '浏览器本地边缘填充' },
+                { id: 'blur', label: '模糊处理', desc: '模糊水印区域' },
+                { id: 'crop', label: '裁剪', desc: '直接裁去该区域' }
+              ]" :key="method.id" class="method-option"
+                :class="{ active: removeMethod === method.id, 'ai-option': method.id === 'ai' }">
+                <input type="radio" :value="method.id" v-model="removeMethod" hidden />
                 <span class="method-name">{{ method.label }}</span>
                 <span class="method-desc">{{ method.desc }}</span>
               </label>
@@ -708,12 +667,7 @@ function clearSelection() {
           <div class="control-group" v-if="removeMethod === 'ai'">
             <label class="control-label">边缘扩展: {{ padding }}px（扩大修复范围提高质量）</label>
             <div class="slider-row">
-              <input
-                type="range"
-                min="0"
-                max="30"
-                v-model.number="padding"
-              />
+              <input type="range" min="0" max="30" v-model.number="padding" />
               <span class="slider-value">{{ padding }}</span>
             </div>
           </div>
@@ -721,22 +675,13 @@ function clearSelection() {
           <div class="control-group" v-if="removeMethod === 'blur'">
             <label class="control-label">模糊强度: {{ blurRadius }}px</label>
             <div class="slider-row">
-              <input
-                type="range"
-                min="1"
-                max="30"
-                v-model.number="blurRadius"
-              />
+              <input type="range" min="1" max="30" v-model.number="blurRadius" />
               <span class="slider-value">{{ blurRadius }}</span>
             </div>
           </div>
 
           <div class="selection-actions">
-            <button
-              class="btn btn-primary"
-              :disabled="isAIProcessing"
-              @click="removeWatermark"
-            >
+            <button class="btn btn-primary" :disabled="isAIProcessing" @click="removeWatermark">
               <span v-if="isAIProcessing" class="btn-spinner"></span>
               {{ isAIProcessing ? 'AI 处理中...' : removeMethod === 'ai' ? '🚀 AI 智能去除' : '去除水印' }}
             </button>
@@ -804,6 +749,7 @@ function clearSelection() {
 .editor-card {
   overflow: hidden;
 }
+
 .editor-header {
   display: flex;
   align-items: center;
@@ -814,19 +760,23 @@ function clearSelection() {
   flex-wrap: wrap;
   gap: 12px;
 }
+
 .file-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
+
 .file-name {
   font-weight: 600;
   font-size: 0.9375rem;
 }
+
 .file-meta {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
 .header-actions {
   display: flex;
   gap: 8px;
@@ -837,6 +787,7 @@ function clearSelection() {
 .editor-body {
   padding: 20px 24px;
 }
+
 .instructions {
   margin-bottom: 16px;
 }
@@ -845,6 +796,7 @@ function clearSelection() {
 .canvas-area {
   margin-bottom: 16px;
 }
+
 .canvas-container {
   display: flex;
   justify-content: center;
@@ -853,6 +805,7 @@ function clearSelection() {
   border: 1px solid var(--border);
   padding: 16px;
 }
+
 .main-canvas {
   max-width: 100%;
   height: auto;
@@ -869,11 +822,13 @@ function clearSelection() {
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
+
 .control-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+
 .control-label {
   font-size: 0.875rem;
   font-weight: 600;
@@ -886,6 +841,7 @@ function clearSelection() {
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .method-option {
   display: flex;
   flex-direction: column;
@@ -899,32 +855,39 @@ function clearSelection() {
   flex: 1;
   min-width: 100px;
 }
+
 .method-option:hover {
   border-color: var(--primary);
 }
+
 .method-option.active {
   background: var(--primary-light);
   border-color: var(--primary);
   color: var(--primary);
 }
+
 .method-option.ai-option {
   border-color: #A5B4FC;
   background: linear-gradient(135deg, #EEF2FF 0%, #F5F3FF 100%);
 }
+
 .method-option.ai-option.active {
   border-color: var(--primary);
   background: linear-gradient(135deg, #C7D2FE 0%, #DDD6FE 100%);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
+
 .method-name {
   font-weight: 600;
   font-size: 0.875rem;
 }
+
 .method-desc {
   font-size: 0.6875rem;
   color: var(--text-muted);
   margin-top: 2px;
 }
+
 .method-option.active .method-desc {
   color: var(--primary);
   opacity: 0.7;
@@ -935,6 +898,7 @@ function clearSelection() {
   align-items: center;
   gap: 12px;
 }
+
 .slider-value {
   font-size: 0.875rem;
   font-weight: 600;
@@ -952,13 +916,16 @@ function clearSelection() {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
+
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* --- Tips Card --- */
@@ -966,31 +933,37 @@ function clearSelection() {
   padding: 24px;
   margin-top: 16px;
 }
+
 .tips-title {
   font-size: 1rem;
   font-weight: 700;
   margin-bottom: 16px;
 }
+
 .tips-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
+
 .tip-item {
   display: flex;
   gap: 10px;
   align-items: flex-start;
 }
+
 .tip-icon {
   font-size: 1.25rem;
   flex-shrink: 0;
   line-height: 1.4;
 }
+
 .tip-item strong {
   font-size: 0.8125rem;
   color: var(--text);
   display: block;
 }
+
 .tip-item p {
   font-size: 0.75rem;
   color: var(--text-secondary);
@@ -1008,38 +981,52 @@ function clearSelection() {
   font-weight: 600;
   border: 1px solid;
 }
+
 .ai-status.ai-online {
   color: #059669;
   background: #ECFDF5;
   border-color: #A7F3D0;
 }
+
 .ai-status.ai-offline {
   color: #D97706;
   background: #FFFBEB;
   border-color: #FDE68A;
 }
+
 .ai-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   display: inline-block;
 }
+
 .ai-online .ai-dot {
   background: #10B981;
   animation: ai-pulse 2s infinite;
 }
+
 .ai-offline .ai-dot {
   background: #F59E0B;
 }
+
 @keyframes ai-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 
 /* --- AI Loading Overlay --- */
 .canvas-container {
   position: relative;
 }
+
 .ai-loading-overlay {
   position: absolute;
   inset: 0;
@@ -1051,9 +1038,11 @@ function clearSelection() {
   z-index: 10;
   border-radius: var(--radius-sm);
 }
+
 .ai-loading-content {
   text-align: center;
 }
+
 .ai-spinner {
   width: 40px;
   height: 40px;
@@ -1063,19 +1052,25 @@ function clearSelection() {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
+
 .ai-loading-text {
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text);
   margin-bottom: 4px;
 }
+
 .ai-loading-hint {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
 .main-canvas.ai-processing {
   opacity: 0.5;
   pointer-events: none;
@@ -1085,49 +1080,63 @@ function clearSelection() {
   .upload-card {
     padding: 16px;
   }
+
   .editor-header {
     padding: 10px 16px;
     gap: 8px;
   }
+
   .editor-body {
     padding: 12px;
   }
+
   .canvas-container {
     padding: 8px;
     min-height: 150px;
   }
+
   .method-options {
     flex-direction: column;
   }
+
   .method-option {
     padding: 14px 16px;
     min-width: auto;
   }
+
   .method-name {
     font-size: 0.9375rem;
   }
+
   .method-desc {
     font-size: 0.75rem;
   }
+
   .tips-grid {
     grid-template-columns: 1fr;
   }
+
   .tips-card {
     padding: 16px;
   }
+
   .control-label {
     font-size: 0.9375rem;
   }
+
   .slider-row {
     gap: 16px;
   }
+
   .slider-value {
     font-size: 0.9375rem;
     min-width: 36px;
   }
+
   .selection-actions {
     flex-direction: column;
   }
+
   .selection-actions .btn {
     flex: 1;
     min-height: 48px;
@@ -1138,48 +1147,62 @@ function clearSelection() {
   .upload-card {
     padding: 12px;
   }
+
   .editor-header {
     padding: 8px 12px;
   }
+
   .file-name {
     font-size: 0.875rem;
     max-width: 180px;
   }
+
   .file-meta {
     font-size: 0.7rem;
   }
+
   .ai-status {
     font-size: 0.7rem;
     padding: 3px 8px;
   }
+
   .editor-body {
     padding: 8px;
   }
+
   .canvas-container {
     padding: 4px;
     min-height: 120px;
   }
+
   .main-canvas {
     border-radius: 2px;
   }
+
   .method-option {
     padding: 12px;
   }
+
   .tips-card {
     padding: 12px;
   }
+
   .tip-item {
     gap: 12px;
   }
+
   .tip-item strong {
     font-size: 0.875rem;
   }
+
   .tip-item p {
     font-size: 0.8125rem;
   }
+
   .ai-loading-text {
     font-size: 0.875rem;
   }
+
   .ai-loading-hint {
     font-size: 0.7rem;
   }
