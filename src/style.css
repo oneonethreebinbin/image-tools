@@ -187,6 +187,11 @@ input, select {
   height: 100px;
   margin: 24px 0;
 }
+.ad-live {
+  background: transparent;
+  border: 0;
+  display: block;
+}
 
 /* ========== Slider ========== */
 input[type="range"] {

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, inject, ref, watch } from 'vue'
 import { I18N_KEY } from '../i18n'
+import AdSenseSlot from './AdSenseSlot.vue'
 
 const { t } = inject(I18N_KEY)
 
@@ -26,6 +27,7 @@ const canvasRef = ref(null)
 const originalCanvasRef = ref(null)
 
 const presets = computed(() => t('compressor.presets'))
+const toolAdSlot = import.meta.env.VITE_ADSENSE_SLOT_TOOL || import.meta.env.VITE_ADSENSE_SLOT_INLINE || ''
 
 const compressionRatio = computed(() => {
   if (!originalSize.value || !compressedSize.value) return 0
@@ -316,7 +318,12 @@ function reset() {
       </div>
     </div>
 
-    <div v-if="originalImage" class="ad-slot ad-inline">{{ t('site.toolAd') }}</div>
+    <AdSenseSlot
+      v-if="originalImage"
+      class-name="ad-inline"
+      :label="t('site.toolAd')"
+      :slot="toolAdSlot"
+    />
   </div>
 </template>
 

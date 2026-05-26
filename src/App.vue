@@ -1,8 +1,10 @@
 <script setup>
-import { computed, provide, ref, watchEffect } from 'vue'
+import { computed, onMounted, provide, ref, watchEffect } from 'vue'
 import WatermarkRemover from './components/WatermarkRemover.vue'
 import ImageCompressor from './components/ImageCompressor.vue'
+import AdSenseSlot from './components/AdSenseSlot.vue'
 import { I18N_KEY, createI18n } from './i18n'
+import { loadAdSense } from './adsense'
 
 const i18n = createI18n()
 provide(I18N_KEY, i18n)
@@ -23,6 +25,14 @@ const currentDescription = computed(() =>
     ? i18n.t('site.descriptionCompress')
     : i18n.t('site.descriptionWatermark'),
 )
+
+const adSlots = {
+  banner: import.meta.env.VITE_ADSENSE_SLOT_BANNER || '',
+  sidebar: import.meta.env.VITE_ADSENSE_SLOT_SIDEBAR || '',
+  inline: import.meta.env.VITE_ADSENSE_SLOT_INLINE || '',
+}
+
+onMounted(loadAdSense)
 
 function refFromHash() {
   const initial = window.location.hash === '#compress' ? 'compress' : 'watermark'
@@ -123,7 +133,11 @@ watchEffect(() => {
     </header>
 
     <div class="container">
-      <div class="ad-slot ad-banner">{{ i18n.t('site.adBanner') }}</div>
+      <AdSenseSlot
+        class-name="ad-banner"
+        :label="i18n.t('site.adBanner')"
+        :slot="adSlots.banner"
+      />
     </div>
 
     <main class="main">
@@ -140,7 +154,11 @@ watchEffect(() => {
           </div>
 
           <aside class="sidebar">
-            <div class="ad-slot ad-sidebar">{{ i18n.t('site.adSidebar') }}</div>
+            <AdSenseSlot
+              class-name="ad-sidebar"
+              :label="i18n.t('site.adSidebar')"
+              :slot="adSlots.sidebar"
+            />
             <div class="card feature-card">
               <h2 class="feature-card-title">{{ i18n.t('site.whyChoose') }}</h2>
               <ul class="feature-list">
@@ -156,7 +174,11 @@ watchEffect(() => {
           </aside>
         </div>
 
-        <div class="ad-slot ad-inline">{{ i18n.t('site.adInline') }}</div>
+        <AdSenseSlot
+          class-name="ad-inline"
+          :label="i18n.t('site.adInline')"
+          :slot="adSlots.inline"
+        />
       </div>
     </main>
 
