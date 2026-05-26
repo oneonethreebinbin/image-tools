@@ -1,88 +1,154 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, provide, ref, watchEffect } from 'vue'
 import WatermarkRemover from './components/WatermarkRemover.vue'
 import ImageCompressor from './components/ImageCompressor.vue'
+import { I18N_KEY, createI18n } from './i18n'
 
-const tabs = [
-  { id: 'watermark', label: '图片去水印', icon: '🖌️', desc: '智能填充 · 模糊 · 裁剪' },
-  { id: 'compress', label: '图片压缩', icon: '📦', desc: '无损压缩 · 格式转换' }
-]
+const i18n = createI18n()
+provide(I18N_KEY, i18n)
 
-const activeTab = ref('watermark')
+const activeTab = refFromHash()
 
-const currentTab = computed(() => tabs.find(t => t.id === activeTab.value))
+const tabs = computed(() => [
+  { id: 'watermark', ...i18n.t('tabs.watermark') },
+  { id: 'compress', ...i18n.t('tabs.compress') },
+])
+
+const currentTab = computed(() => tabs.value.find((tab) => tab.id === activeTab.value) ?? tabs.value[0])
+const currentTitle = computed(() =>
+  activeTab.value === 'compress' ? i18n.t('site.titleCompress') : i18n.t('site.titleWatermark'),
+)
+const currentDescription = computed(() =>
+  activeTab.value === 'compress'
+    ? i18n.t('site.descriptionCompress')
+    : i18n.t('site.descriptionWatermark'),
+)
+
+function refFromHash() {
+  const initial = window.location.hash === '#compress' ? 'compress' : 'watermark'
+  const value = ref(initial)
+
+  window.addEventListener('hashchange', () => {
+    value.value = window.location.hash === '#compress' ? 'compress' : 'watermark'
+  })
+
+  return value
+}
+
+function setActiveTab(tabId) {
+  activeTab.value = tabId
+  const nextHash = tabId === 'compress' ? '#compress' : '#watermark'
+  if (window.location.hash !== nextHash) {
+    window.history.replaceState(null, '', nextHash)
+  }
+}
+
+function setMeta(name, content) {
+  let tag = document.querySelector(`meta[name="${name}"]`)
+  if (!tag) {
+    tag = document.createElement('meta')
+    tag.setAttribute('name', name)
+    document.head.appendChild(tag)
+  }
+  tag.setAttribute('content', content)
+}
+
+function setPropertyMeta(property, content) {
+  let tag = document.querySelector(`meta[property="${property}"]`)
+  if (!tag) {
+    tag = document.createElement('meta')
+    tag.setAttribute('property', property)
+    document.head.appendChild(tag)
+  }
+  tag.setAttribute('content', content)
+}
+
+watchEffect(() => {
+  const lang = i18n.language.value
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
+  document.title = currentTitle.value
+  setMeta('description', currentDescription.value)
+  setMeta('keywords', i18n.t('site.keywords'))
+  setPropertyMeta('og:title', currentTitle.value)
+  setPropertyMeta('og:description', currentDescription.value)
+  setPropertyMeta('og:locale', lang === 'zh' ? 'zh_CN' : 'en_US')
+  setPropertyMeta('og:site_name', i18n.t('site.name'))
+  setPropertyMeta('twitter:title', currentTitle.value)
+  setPropertyMeta('twitter:description', currentDescription.value)
+})
 </script>
 
 <template>
   <div class="app">
-    <!-- Header -->
     <header class="header">
       <div class="container header-inner">
-        <a href="/" class="logo">
+        <a href="#watermark" class="logo" @click.prevent="setActiveTab('watermark')">
           <span class="logo-icon">🖼️</span>
-          <span class="logo-text">图片工具箱</span>
+          <span class="logo-text">{{ i18n.t('site.name') }}</span>
         </a>
-        <nav class="nav">
+
+        <nav class="nav" :aria-label="i18n.t('site.tagline')">
           <button
             v-for="tab in tabs"
             :key="tab.id"
             class="nav-tab"
             :class="{ active: activeTab === tab.id }"
-            @click="activeTab = tab.id"
+            type="button"
+            @click="setActiveTab(tab.id)"
           >
             <span class="nav-tab-icon">{{ tab.icon }}</span>
             <span class="nav-tab-label">{{ tab.label }}</span>
           </button>
         </nav>
+
+        <div class="language-switcher" :aria-label="i18n.t('site.language')">
+          <button
+            type="button"
+            class="language-btn"
+            :class="{ active: i18n.language.value === 'zh' }"
+            @click="i18n.setLanguage('zh')"
+          >
+            {{ i18n.t('site.chinese') }}
+          </button>
+          <button
+            type="button"
+            class="language-btn"
+            :class="{ active: i18n.language.value === 'en' }"
+            @click="i18n.setLanguage('en')"
+          >
+            {{ i18n.t('site.english') }}
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Ad Banner Top -->
     <div class="container">
-      <div class="ad-slot ad-banner">Google AdSense · 横幅广告位 (728×90)</div>
+      <div class="ad-slot ad-banner">{{ i18n.t('site.adBanner') }}</div>
     </div>
 
-    <!-- Main Content -->
     <main class="main">
       <div class="container">
-        <!-- Page Title -->
         <section class="page-hero">
           <h1 class="page-title">{{ currentTab.icon }} {{ currentTab.label }}</h1>
           <p class="page-desc">{{ currentTab.desc }}</p>
         </section>
 
         <div class="main-layout">
-          <!-- Tool Area -->
           <div class="tool-area">
             <WatermarkRemover v-if="activeTab === 'watermark'" />
             <ImageCompressor v-if="activeTab === 'compress'" />
           </div>
 
-          <!-- Ad Sidebar (Desktop) -->
           <aside class="sidebar">
-            <div class="ad-slot ad-sidebar">Google AdSense · 侧边栏广告 (300×250)</div>
+            <div class="ad-slot ad-sidebar">{{ i18n.t('site.adSidebar') }}</div>
             <div class="card feature-card">
-              <h3 class="feature-card-title">为什么选择我们？</h3>
+              <h2 class="feature-card-title">{{ i18n.t('site.whyChoose') }}</h2>
               <ul class="feature-list">
-                <li>
-                  <span class="feature-icon">🔒</span>
+                <li v-for="feature in i18n.t('site.features')" :key="feature.title">
+                  <span class="feature-icon">{{ feature.icon }}</span>
                   <div>
-                    <strong>隐私安全</strong>
-                    <p>所有处理在浏览器本地完成，图片不会上传到任何服务器</p>
-                  </div>
-                </li>
-                <li>
-                  <span class="feature-icon">⚡</span>
-                  <div>
-                    <strong>极速处理</strong>
-                    <p>无需等待上传下载，毫秒级完成处理</p>
-                  </div>
-                </li>
-                <li>
-                  <span class="feature-icon">🆓</span>
-                  <div>
-                    <strong>完全免费</strong>
-                    <p>不限次数，不限大小，永久免费使用</p>
+                    <strong>{{ feature.title }}</strong>
+                    <p>{{ feature.text }}</p>
                   </div>
                 </li>
               </ul>
@@ -90,23 +156,20 @@ const currentTab = computed(() => tabs.find(t => t.id === activeTab.value))
           </aside>
         </div>
 
-        <!-- Ad Inline -->
-        <div class="ad-slot ad-inline">Google AdSense · 内容广告位</div>
+        <div class="ad-slot ad-inline">{{ i18n.t('site.adInline') }}</div>
       </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer">
       <div class="container footer-inner">
-        <p class="footer-copy">&copy; 2026 图片工具箱 · 免费在线图片处理工具</p>
-        <p class="footer-note">所有图片在您的浏览器中本地处理，不会上传到任何服务器。</p>
+        <p class="footer-copy">{{ i18n.t('site.copyright') }}</p>
+        <p class="footer-note">{{ i18n.t('site.privacyNote') }}</p>
       </div>
     </footer>
   </div>
 </template>
 
 <style scoped>
-/* ========== Header ========== */
 .header {
   background: white;
   border-bottom: 1px solid var(--border);
@@ -115,27 +178,33 @@ const currentTab = computed(() => tabs.find(t => t.id === activeTab.value))
   z-index: 100;
   backdrop-filter: blur(8px);
 }
+
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
+  gap: 16px;
+  min-height: 64px;
 }
+
 .logo {
   display: flex;
   align-items: center;
   gap: 10px;
   text-decoration: none;
   color: var(--text);
+  flex-shrink: 0;
 }
+
 .logo-icon {
   font-size: 1.75rem;
 }
+
 .logo-text {
   font-size: 1.25rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
 }
+
 .nav {
   display: flex;
   gap: 4px;
@@ -143,62 +212,90 @@ const currentTab = computed(() => tabs.find(t => t.id === activeTab.value))
   padding: 4px;
   border-radius: var(--radius);
 }
-.nav-tab {
+
+.nav-tab,
+.language-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 20px;
+  justify-content: center;
   border-radius: calc(var(--radius) - 4px);
   font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-weight: 600;
   background: transparent;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
-.nav-tab:hover {
+
+.nav-tab {
+  gap: 6px;
+  padding: 8px 16px;
+  color: var(--text-secondary);
+}
+
+.nav-tab:hover,
+.language-btn:hover {
   color: var(--text);
   background: white;
 }
-.nav-tab.active {
+
+.nav-tab.active,
+.language-btn.active {
   background: white;
   color: var(--primary);
   box-shadow: var(--shadow);
-  font-weight: 600;
 }
+
 .nav-tab-icon {
   font-size: 1.125rem;
 }
 
-/* ========== Page Hero ========== */
+.language-switcher {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.language-btn {
+  padding: 6px 10px;
+  color: var(--text-secondary);
+  min-height: 32px;
+}
+
 .page-hero {
   text-align: center;
   padding: 40px 0 32px;
 }
+
 .page-title {
   font-size: 2rem;
   font-weight: 800;
   color: var(--text);
-  letter-spacing: -0.03em;
   margin-bottom: 8px;
 }
+
 .page-desc {
   font-size: 1rem;
   color: var(--text-secondary);
 }
 
-/* ========== Main Layout ========== */
 .main {
   padding-bottom: 48px;
 }
+
 .main-layout {
   display: flex;
   gap: 32px;
   align-items: flex-start;
 }
+
 .tool-area {
   flex: 1;
   min-width: 0;
 }
+
 .sidebar {
   flex-shrink: 0;
   width: 300px;
@@ -207,102 +304,124 @@ const currentTab = computed(() => tabs.find(t => t.id === activeTab.value))
   gap: 16px;
 }
 
-/* ========== Feature Card ========== */
 .feature-card {
   padding: 20px;
 }
+
 .feature-card-title {
   font-size: 0.9375rem;
   font-weight: 700;
   margin-bottom: 16px;
   color: var(--text);
 }
+
 .feature-list {
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
+
 .feature-list li {
   display: flex;
   gap: 10px;
   align-items: flex-start;
 }
+
 .feature-icon {
   font-size: 1.25rem;
   line-height: 1.4;
   flex-shrink: 0;
 }
+
 .feature-list strong {
   font-size: 0.8125rem;
   color: var(--text);
   display: block;
 }
+
 .feature-list p {
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 2px;
 }
 
-/* ========== Footer ========== */
 .footer {
   background: white;
   border-top: 1px solid var(--border);
   padding: 24px 0;
 }
+
 .footer-inner {
   text-align: center;
 }
+
 .footer-copy {
   font-size: 0.8125rem;
   color: var(--text-secondary);
 }
+
 .footer-note {
   font-size: 0.75rem;
   color: var(--text-muted);
   margin-top: 4px;
 }
 
-/* ========== Responsive ========== */
-@media (max-width: 768px) {
+@media (max-width: 860px) {
   .header-inner {
-    height: 56px;
-    padding: 0 8px;
+    flex-wrap: wrap;
+    padding: 10px 12px;
   }
+
+  .nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
   .logo-text {
     font-size: 1rem;
   }
+
   .nav-tab {
-    padding: 6px 14px;
+    padding: 6px 12px;
     font-size: 0.8125rem;
   }
-  .nav-tab-label {
-    display: none;
-  }
+
   .nav-tab-icon {
     font-size: 1.25rem;
   }
-  .nav {
-    padding: 3px;
+
+  .language-btn {
+    padding: 5px 8px;
+    font-size: 0.8125rem;
   }
+
   .page-hero {
     padding: 20px 0 16px;
     text-align: left;
   }
+
   .page-title {
     font-size: 1.5rem;
   }
+
   .page-desc {
     font-size: 0.9375rem;
   }
+
   .main-layout {
     flex-direction: column;
     gap: 16px;
   }
+
   .sidebar {
     width: 100%;
     order: -1;
   }
+
   .tool-area {
     width: 100%;
   }
@@ -310,42 +429,41 @@ const currentTab = computed(() => tabs.find(t => t.id === activeTab.value))
 
 @media (max-width: 480px) {
   .header-inner {
-    height: 52px;
+    gap: 8px;
   }
+
   .logo-icon {
     font-size: 1.5rem;
   }
+
   .logo-text {
     font-size: 0.9375rem;
   }
+
+  .nav-tab-label {
+    display: none;
+  }
+
   .nav-tab {
-    padding: 5px 12px;
+    padding: 6px 18px;
   }
-  .nav-tab-icon {
-    font-size: 1.125rem;
-  }
+
   .page-hero {
     padding: 16px 0 12px;
   }
+
   .page-title {
     font-size: 1.375rem;
-    letter-spacing: -0.02em;
   }
+
   .main {
     padding-bottom: 32px;
   }
-  .feature-list li {
-    gap: 12px;
-  }
-  .feature-list strong {
-    font-size: 0.875rem;
-  }
-  .feature-list p {
-    font-size: 0.8125rem;
-  }
+
   .footer {
     padding: 20px 0;
   }
+
   .footer-copy,
   .footer-note {
     font-size: 0.75rem;

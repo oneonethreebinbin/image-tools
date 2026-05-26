@@ -1,70 +1,60 @@
 <script setup>
-import { ref, nextTick, watch, onMounted } from 'vue'
+import { computed, inject, nextTick, onMounted, ref } from 'vue'
+import { I18N_KEY } from '../i18n'
 
-// --- AI Backend ---
+const { t } = inject(I18N_KEY)
+
 const BACKEND_URL = 'https://viewmax-watermark-remover.hf.space'
-const useAI = ref(false)          // 是否启用 AI 模式
-const isAIProcessing = ref(false) // AI 处理中
-const aiAvailable = ref(false)    // 后端是否可用
+const isAIProcessing = ref(false)
+const aiAvailable = ref(false)
 
-// --- State ---
 const originalImage = ref(null)
 const imageElement = ref(null)
 const canvasRef = ref(null)
-const previewCanvasRef = ref(null)
 const wrapperRef = ref(null)
 const fileInput = ref(null)
 
 const isDrawing = ref(false)
-const selection = ref(null) // { x, y, width, height } in image coordinates
+const selection = ref(null)
 const hasSelection = ref(false)
 const isProcessed = ref(false)
 const processedUrl = ref('')
 const error = ref('')
 const isDragOver = ref(false)
 const blurRadius = ref(10)
-const removeMethod = ref('ai') // ai | smart | blur | crop
-const zoomLevel = ref(1)
-const padding = ref(5) // AI 模式下的边缘扩展像素
-
-// Canvas scaling factor (canvas pixels to image pixels)
+const removeMethod = ref('ai')
+const padding = ref(5)
 const scale = ref(1)
-const canvasOffset = ref({ x: 0, y: 0 })
+
+const methods = computed(() => t('watermark.methods'))
 
 let drawStart = null
-let originalImageData = null // backup for undo
+let originalImageData = null
 
-// --- AI Backend Health Check ---
 async function checkAIBackend() {
   try {
     const res = await fetch(`${BACKEND_URL}/api/health`, {
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(10000),
     })
-    if (res.ok) {
-      aiAvailable.value = true
-      console.log('[AI] 后端服务已连接')
-      return
-    }
+    aiAvailable.value = res.ok
+    return
   } catch (e) {
-    console.log('[AI] 健康检查失败:', e.message)
+    console.log('[AI] Health check failed:', e.message)
   }
   aiAvailable.value = false
 }
 
 onMounted(() => {
   checkAIBackend()
-  // 每 30 秒检查一次后端状态
-  setInterval(checkAIBackend, 30000)
+  window.setInterval(checkAIBackend, 30000)
 })
 
-// --- Helpers ---
 function formatSize(bytes) {
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
 
-// --- File Handling ---
 function handleFile(file) {
   error.value = ''
   selection.value = null
@@ -75,36 +65,36 @@ function handleFile(file) {
   originalImageData = null
 
   if (!file || !file.type.startsWith('image/')) {
-    error.value = '请选择图片文件'
+    error.value = t('common.imageOnly')
     return
   }
 
   originalImage.value = file
   const reader = new FileReader()
-  reader.onload = (e) => {
+  reader.onload = (event) => {
     const img = new Image()
     img.onload = () => {
       imageElement.value = img
       nextTick(() => drawImageOnCanvas())
     }
-    img.src = e.target.result
+    img.src = event.target.result
   }
   reader.readAsDataURL(file)
 }
 
-function onFileChange(e) {
-  const file = e.target.files?.[0]
+function onFileChange(event) {
+  const file = event.target.files?.[0]
   if (file) handleFile(file)
 }
 
-function onDrop(e) {
+function onDrop(event) {
   isDragOver.value = false
-  const file = e.dataTransfer?.files?.[0]
+  const file = event.dataTransfer?.files?.[0]
   if (file) handleFile(file)
 }
 
-function onDragOver(e) {
-  e.preventDefault()
+function onDragOver(event) {
+  event.preventDefault()
   isDragOver.value = true
 }
 
@@ -116,7 +106,6 @@ function triggerUpload() {
   fileInput.value?.click()
 }
 
-// --- Canvas Drawing ---
 function drawImageOnCanvas() {
   const canvas = canvasRef.value
   const img = imageElement.value
@@ -125,47 +114,36 @@ function drawImageOnCanvas() {
   const maxWidth = wrapperRef.value ? wrapperRef.value.clientWidth - 4 : 700
   const maxHeight = 500
 
-  let w = img.naturalWidth
-  let h = img.naturalHeight
-  scale.value = Math.min(maxWidth / w, maxHeight / h, 1)
-  w = Math.round(w * scale.value)
-  h = Math.round(h * scale.value)
+  let width = img.naturalWidth
+  let height = img.naturalHeight
+  scale.value = Math.min(maxWidth / width, maxHeight / height, 1)
+  width = Math.round(width * scale.value)
+  height = Math.round(height * scale.value)
 
-  canvas.width = w
-  canvas.height = h
+  canvas.width = width
+  canvas.height = height
 
   const ctx = canvas.getContext('2d')
-  ctx.clearRect(0, 0, w, h)
-  ctx.drawImage(img, 0, 0, w, h)
-
-  // Store the full-res image data for processing
+  ctx.clearRect(0, 0, width, height)
+  ctx.drawImage(img, 0, 0, width, height)
   storeOriginalImageData()
 
-  // Redraw selection if exists
-  if (hasSelection.value && selection.value) {
-    drawSelectionBox()
-  }
+  if (hasSelection.value && selection.value) drawSelectionBox()
 }
 
 function storeOriginalImageData() {
   const canvas = canvasRef.value
   if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  originalImageData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height)
 }
 
 function drawSelectionBox() {
-  if (!selection.value) return
   const canvas = canvasRef.value
-  if (!canvas) return
+  if (!selection.value || !canvas) return
+
   const ctx = canvas.getContext('2d')
+  if (originalImageData) ctx.putImageData(originalImageData, 0, 0)
 
-  // Restore original first
-  if (originalImageData) {
-    ctx.putImageData(originalImageData, 0, 0)
-  }
-
-  // Draw selection overlay
   const { x, y, width, height } = selection.value
   ctx.fillStyle = 'rgba(79, 70, 229, 0.2)'
   ctx.fillRect(x, y, width, height)
@@ -176,29 +154,27 @@ function drawSelectionBox() {
   ctx.setLineDash([])
 }
 
-// --- Mouse Events for Selection ---
-function getCanvasPos(e) {
+function getCanvasPos(event) {
   const canvas = canvasRef.value
   if (!canvas) return { x: 0, y: 0 }
   const rect = canvas.getBoundingClientRect()
   return {
-    x: e.clientX - rect.left,
-    y: e.clientY - rect.top
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
   }
 }
 
-function onMouseDown(e) {
-  if (!imageElement.value || isProcessed.value) return
-  const pos = getCanvasPos(e)
+function startSelection(pos) {
   drawStart = pos
   isDrawing.value = true
   selection.value = { x: pos.x, y: pos.y, width: 0, height: 0 }
   hasSelection.value = false
 }
 
-function onMouseMove(e) {
+function updateSelection(pos) {
   if (!isDrawing.value || !drawStart || !selection.value) return
-  const pos = getCanvasPos(e)
+  const canvas = canvasRef.value
+  if (!canvas) return
 
   const x = Math.min(drawStart.x, pos.x)
   const y = Math.min(drawStart.y, pos.y)
@@ -208,113 +184,77 @@ function onMouseMove(e) {
   selection.value = {
     x: Math.max(0, x),
     y: Math.max(0, y),
-    width: Math.min(width, canvasRef.value.width - x),
-    height: Math.min(height, canvasRef.value.height - y)
+    width: Math.min(width, canvas.width - x),
+    height: Math.min(height, canvas.height - y),
   }
-
   drawSelectionBox()
 }
 
-function onMouseUp(e) {
+function finishSelection() {
   if (!isDrawing.value) return
   isDrawing.value = false
   drawStart = null
 
   if (selection.value && selection.value.width > 5 && selection.value.height > 5) {
     hasSelection.value = true
-  } else {
-    selection.value = null
-    hasSelection.value = false
-    // Redraw without selection
-    if (originalImageData && canvasRef.value) {
-      const ctx = canvasRef.value.getContext('2d')
-      ctx.putImageData(originalImageData, 0, 0)
-    }
+    return
+  }
+
+  selection.value = null
+  hasSelection.value = false
+  if (originalImageData && canvasRef.value) {
+    canvasRef.value.getContext('2d').putImageData(originalImageData, 0, 0)
   }
 }
 
-function onTouchStart(e) {
+function onMouseDown(event) {
   if (!imageElement.value || isProcessed.value) return
-  if (e.touches.length === 1) {
-    const touch = e.touches[0]
-    const pos = getCanvasPos(touch)
-    drawStart = pos
-    isDrawing.value = true
-    selection.value = { x: pos.x, y: pos.y, width: 0, height: 0 }
-    hasSelection.value = false
-  }
+  startSelection(getCanvasPos(event))
 }
 
-function onTouchMove(e) {
-  if (!isDrawing.value || !drawStart || !selection.value) return
-  e.preventDefault()
-  const touch = e.touches[0]
-  const pos = getCanvasPos(touch)
-  const x = Math.min(drawStart.x, pos.x)
-  const y = Math.min(drawStart.y, pos.y)
-  const width = Math.abs(pos.x - drawStart.x)
-  const height = Math.abs(pos.y - drawStart.y)
-
-  selection.value = {
-    x: Math.max(0, x),
-    y: Math.max(0, y),
-    width: Math.min(width, canvasRef.value.width - x),
-    height: Math.min(height, canvasRef.value.height - y)
-  }
-  drawSelectionBox()
+function onMouseMove(event) {
+  updateSelection(getCanvasPos(event))
 }
 
-function onTouchEnd() {
+function onTouchStart(event) {
+  if (!imageElement.value || isProcessed.value || event.touches.length !== 1) return
+  startSelection(getCanvasPos(event.touches[0]))
+}
+
+function onTouchMove(event) {
   if (!isDrawing.value) return
-  isDrawing.value = false
-  drawStart = null
-  if (selection.value && selection.value.width > 5 && selection.value.height > 5) {
-    hasSelection.value = true
-  } else {
-    selection.value = null
-    hasSelection.value = false
-  }
+  event.preventDefault()
+  updateSelection(getCanvasPos(event.touches[0]))
 }
 
-// --- Removal Methods ---
 async function removeWatermark() {
   if (!hasSelection.value || !selection.value) return
 
   const canvas = canvasRef.value
   if (!canvas) return
   const ctx = canvas.getContext('2d')
-
-  // Reload original before processing
-  if (originalImageData) {
-    ctx.putImageData(originalImageData, 0, 0)
-  }
+  if (originalImageData) ctx.putImageData(originalImageData, 0, 0)
 
   const { x, y, width, height } = selection.value
 
-  // AI 模式：调用后端 LaMa 模型
   if (removeMethod.value === 'ai') {
     await removeWithAI(ctx, x, y, width, height)
     return
   }
 
   const imageData = ctx.getImageData(x, y, width, height)
-
   if (removeMethod.value === 'smart') {
     applySmartFill(ctx, imageData, x, y, width, height)
   } else if (removeMethod.value === 'blur') {
-    applyBlur(ctx, imageData, x, y, width, height, blurRadius.value)
+    applyBlur(ctx, x, y, width, height, blurRadius.value)
   } else if (removeMethod.value === 'crop') {
     applyCrop(ctx, x, y, width, height)
-    isProcessed.value = true
-    updateProcessedPreview()
-    return
   }
 
   isProcessed.value = true
   updateProcessedPreview()
 }
 
-// --- AI Removal ---
 async function removeWithAI(ctx, selX, selY, selW, selH) {
   isAIProcessing.value = true
   error.value = ''
@@ -324,29 +264,17 @@ async function removeWithAI(ctx, selX, selY, selW, selH) {
     const img = imageElement.value
     if (!canvas || !img) return
 
-    // 计算 canvas 到原图的缩放比例
     const scaleX = img.naturalWidth / canvas.width
     const scaleY = img.naturalHeight / canvas.height
-
-    // 将 canvas 坐标转换为原图坐标
-    const origX = Math.round(selX * scaleX)
-    const origY = Math.round(selY * scaleY)
-    const origW = Math.round(selW * scaleX)
-    const origH = Math.round(selH * scaleY)
-
-    // 从 canvas 获取当前显示的图片（完整分辨率）
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
-
-    // 构建 FormData
     const formData = new FormData()
-    formData.append('image', blob, 'image.png')
-    formData.append('x', origX)
-    formData.append('y', origY)
-    formData.append('width', origW)
-    formData.append('height', origH)
-    formData.append('padding', padding.value)
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 
-    console.log(`[AI] 发送请求到后端... 区域: (${origX},${origY}) ${origW}x${origH}`)
+    formData.append('image', blob, 'image.png')
+    formData.append('x', Math.round(selX * scaleX))
+    formData.append('y', Math.round(selY * scaleY))
+    formData.append('width', Math.round(selW * scaleX))
+    formData.append('height', Math.round(selH * scaleY))
+    formData.append('padding', padding.value)
 
     const res = await fetch(`${BACKEND_URL}/api/remove-watermark-by-coords`, {
       method: 'POST',
@@ -355,13 +283,10 @@ async function removeWithAI(ctx, selX, selY, selW, selH) {
 
     if (!res.ok) {
       const err = await res.json()
-      throw new Error(err.detail || 'AI 处理失败')
+      throw new Error(err.detail || 'AI processing failed')
     }
 
     const data = await res.json()
-    console.log('[AI] 处理完成！')
-
-    // 将 base64 结果绘制到 canvas 上
     const resultImg = new Image()
     await new Promise((resolve, reject) => {
       resultImg.onload = resolve
@@ -369,7 +294,6 @@ async function removeWithAI(ctx, selX, selY, selW, selH) {
       resultImg.src = `data:image/png;base64,${data.image_base64}`
     })
 
-    // 更新 canvas
     canvas.width = resultImg.width
     canvas.height = resultImg.height
     ctx.drawImage(resultImg, 0, 0)
@@ -377,10 +301,9 @@ async function removeWithAI(ctx, selX, selY, selW, selH) {
     isProcessed.value = true
     updateProcessedPreview()
   } catch (e) {
-    console.error('[AI] 处理失败:', e)
-    error.value = `AI 处理失败: ${e.message}。请确认后端已启动 (双击 backend/start.bat)。已自动回退到智能填充模式。`
+    console.error('[AI] Processing failed:', e)
+    error.value = t('watermark.aiFailed', { message: e.message })
 
-    // 回退到智能填充
     const { x, y, width, height } = selection.value
     const imageData = ctx.getImageData(x, y, width, height)
     applySmartFill(ctx, imageData, x, y, width, height)
@@ -392,7 +315,6 @@ async function removeWithAI(ctx, selX, selY, selW, selH) {
 }
 
 function applySmartFill(ctx, imageData, selX, selY, selW, selH) {
-  // Get the surrounding image data for boundary pixels
   const canvas = canvasRef.value
   const fullData = ctx.getImageData(0, 0, canvas.width, canvas.height)
   const data = fullData.data
@@ -403,45 +325,52 @@ function applySmartFill(ctx, imageData, selX, selY, selW, selH) {
       const px = selX + col
       const py = selY + row
       const idx = (py * fullW + px) * 4
-
-      // Collect boundary samples: left, right, top, bottom
-      let r = 0, g = 0, b = 0, a = 0
+      let r = 0
+      let g = 0
+      let b = 0
+      let a = 0
       let totalWeight = 0
 
-      // Left boundary
       if (selX > 0) {
         const li = (py * fullW + (selX - 1)) * 4
-        const dist = col + 1
-        const w = 1 / (dist * dist)
-        r += data[li] * w; g += data[li + 1] * w; b += data[li + 2] * w; a += data[li + 3] * w
-        totalWeight += w
+        const weight = 1 / ((col + 1) * (col + 1))
+        r += data[li] * weight
+        g += data[li + 1] * weight
+        b += data[li + 2] * weight
+        a += data[li + 3] * weight
+        totalWeight += weight
       }
 
-      // Right boundary
       if (selX + selW < fullW) {
         const ri = (py * fullW + (selX + selW)) * 4
         const dist = selW - col
-        const w = 1 / (dist * dist)
-        r += data[ri] * w; g += data[ri + 1] * w; b += data[ri + 2] * w; a += data[ri + 3] * w
-        totalWeight += w
+        const weight = 1 / (dist * dist)
+        r += data[ri] * weight
+        g += data[ri + 1] * weight
+        b += data[ri + 2] * weight
+        a += data[ri + 3] * weight
+        totalWeight += weight
       }
 
-      // Top boundary
       if (selY > 0) {
         const ti = ((selY - 1) * fullW + px) * 4
-        const dist = row + 1
-        const w = 1 / (dist * dist)
-        r += data[ti] * w; g += data[ti + 1] * w; b += data[ti + 2] * w; a += data[ti + 3] * w
-        totalWeight += w
+        const weight = 1 / ((row + 1) * (row + 1))
+        r += data[ti] * weight
+        g += data[ti + 1] * weight
+        b += data[ti + 2] * weight
+        a += data[ti + 3] * weight
+        totalWeight += weight
       }
 
-      // Bottom boundary
       if (selY + selH < canvas.height) {
         const bi = ((selY + selH) * fullW + px) * 4
         const dist = selH - row
-        const w = 1 / (dist * dist)
-        r += data[bi] * w; g += data[bi + 1] * w; b += data[bi + 2] * w; a += data[bi + 3] * w
-        totalWeight += w
+        const weight = 1 / (dist * dist)
+        r += data[bi] * weight
+        g += data[bi + 1] * weight
+        b += data[bi + 2] * weight
+        a += data[bi + 3] * weight
+        totalWeight += weight
       }
 
       if (totalWeight > 0) {
@@ -456,29 +385,28 @@ function applySmartFill(ctx, imageData, selX, selY, selW, selH) {
   ctx.putImageData(fullData, 0, 0)
 }
 
-function applyBlur(ctx, imageData, selX, selY, selW, selH, radius) {
-  // Box blur the selected area
+function applyBlur(ctx, selX, selY, selW, selH, radius) {
   const canvas = canvasRef.value
   const fullData = ctx.getImageData(0, 0, canvas.width, canvas.height)
   const data = fullData.data
-  const w = canvas.width
-
-  // Create working copy
   const workData = new Uint8ClampedArray(data)
-
+  const width = canvas.width
   const r = Math.max(1, Math.min(radius, 50))
 
   for (let row = selY; row < selY + selH; row++) {
     for (let col = selX; col < selX + selW; col++) {
-      let sumR = 0, sumG = 0, sumB = 0, sumA = 0
+      let sumR = 0
+      let sumG = 0
+      let sumB = 0
+      let sumA = 0
       let count = 0
 
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
           const ny = row + dy
           const nx = col + dx
-          if (ny >= 0 && ny < canvas.height && nx >= 0 && nx < w) {
-            const ni = (ny * w + nx) * 4
+          if (ny >= 0 && ny < canvas.height && nx >= 0 && nx < width) {
+            const ni = (ny * width + nx) * 4
             sumR += workData[ni]
             sumG += workData[ni + 1]
             sumB += workData[ni + 2]
@@ -488,7 +416,7 @@ function applyBlur(ctx, imageData, selX, selY, selW, selH, radius) {
         }
       }
 
-      const idx = (row * w + col) * 4
+      const idx = (row * width + col) * 4
       data[idx] = Math.round(sumR / count)
       data[idx + 1] = Math.round(sumG / count)
       data[idx + 2] = Math.round(sumB / count)
@@ -501,23 +429,26 @@ function applyBlur(ctx, imageData, selX, selY, selW, selH, radius) {
 
 function applyCrop(ctx, selX, selY, selW, selH) {
   const canvas = canvasRef.value
-  const imageData = ctx.getImageData(selX, selY, selW, selH)
+  const source = document.createElement('canvas')
+  source.width = canvas.width
+  source.height = canvas.height
+  source.getContext('2d').drawImage(canvas, 0, 0)
 
-  // Crop: remove the selected area
-  // Get full image
-  const fullData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-
-  // Create new canvas content without the selection
-  canvas.width = canvas.width - selW
-  ctx.putImageData(fullData, 0, 0)
-
-  // Shift left part of right section
-  // Actually, let's do this more simply - we'll take the full image and remove the rectangle
-  // Reset canvas
-  if (imageElement.value) {
-    canvas.width = canvasRef.value.width
-    ctx.drawImage(imageElement.value, 0, 0, canvas.width, canvas.height + selH)
-  }
+  canvas.width = Math.max(1, canvas.width - selW)
+  canvas.height = source.height
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  ctx.drawImage(source, 0, 0, selX, source.height, 0, 0, selX, source.height)
+  ctx.drawImage(
+    source,
+    selX + selW,
+    0,
+    source.width - selX - selW,
+    source.height,
+    selX,
+    0,
+    source.width - selX - selW,
+    source.height,
+  )
 }
 
 function updateProcessedPreview() {
@@ -527,20 +458,18 @@ function updateProcessedPreview() {
   processedUrl.value = canvas.toDataURL('image/png')
 }
 
-// --- Download ---
 function download() {
   const canvas = canvasRef.value
   if (!canvas) return
   const name = originalImage.value
-    ? originalImage.value.name.replace(/\.[^.]+$/, '') + '_nowatermark.png'
+    ? `${originalImage.value.name.replace(/\.[^.]+$/, '')}_nowatermark.png`
     : 'nowatermark.png'
-  const a = document.createElement('a')
-  a.href = canvas.toDataURL('image/png')
-  a.download = name
-  a.click()
+  const link = document.createElement('a')
+  link.href = canvas.toDataURL('image/png')
+  link.download = name
+  link.click()
 }
 
-// --- Reset ---
 function reset() {
   originalImage.value = null
   imageElement.value = null
@@ -553,11 +482,11 @@ function reset() {
   originalImageData = null
   blurRadius.value = 10
   removeMethod.value = 'ai'
+  padding.value = 5
   if (fileInput.value) fileInput.value.value = ''
-  const canvas = canvasRef.value
-  if (canvas) {
-    const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  if (canvasRef.value) {
+    const ctx = canvasRef.value.getContext('2d')
+    ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
   }
 }
 
@@ -565,31 +494,33 @@ function clearSelection() {
   selection.value = null
   hasSelection.value = false
   if (originalImageData && canvasRef.value) {
-    const ctx = canvasRef.value.getContext('2d')
-    ctx.putImageData(originalImageData, 0, 0)
+    canvasRef.value.getContext('2d').putImageData(originalImageData, 0, 0)
   }
 }
 </script>
 
 <template>
   <div class="remover">
-    <!-- Upload Step -->
     <div v-if="!originalImage" class="card upload-card">
-      <div class="drop-zone" :class="{ dragover: isDragOver }" @click="triggerUpload" @drop.prevent="onDrop"
-        @dragover.prevent="onDragOver" @dragleave="onDragLeave">
+      <div
+        class="drop-zone"
+        :class="{ dragover: isDragOver }"
+        @click="triggerUpload"
+        @drop.prevent="onDrop"
+        @dragover.prevent="onDragOver"
+        @dragleave="onDragLeave"
+      >
         <span class="drop-zone-icon">🖼️</span>
-        <p class="drop-zone-title">拖拽图片到这里，或点击上传</p>
-        <p class="drop-zone-hint">支持 JPEG · PNG · WebP · BMP · GIF</p>
+        <p class="drop-zone-title">{{ t('common.uploadTitle') }}</p>
+        <p class="drop-zone-hint">{{ t('common.formatSupportBasic') }}</p>
       </div>
       <input ref="fileInput" type="file" accept="image/*" hidden @change="onFileChange" />
     </div>
 
-    <!-- Error -->
     <div v-if="error" class="alert alert-error" style="margin-bottom: 16px;">
       {{ error }}
     </div>
 
-    <!-- Editor -->
     <div v-if="originalImage" class="card editor-card">
       <div class="editor-header">
         <div class="file-info">
@@ -597,68 +528,77 @@ function clearSelection() {
           <span class="file-meta">{{ formatSize(originalImage.size) }}</span>
         </div>
         <div class="header-actions">
-          <!-- AI 状态指示器 -->
-          <span v-if="removeMethod === 'ai'" class="ai-status"
+          <span
+            v-if="removeMethod === 'ai'"
+            class="ai-status"
             :class="{ 'ai-online': aiAvailable, 'ai-offline': !aiAvailable }"
-            :title="aiAvailable ? 'AI 后端已连接' : 'AI 后端未连接，将使用本地模式'">
+            :title="aiAvailable ? t('watermark.aiOnlineTitle') : t('watermark.aiOfflineTitle')"
+          >
             <span class="ai-dot"></span>
-            {{ aiAvailable ? 'AI 就绪' : '离线模式' }}
+            {{ aiAvailable ? t('watermark.aiOnline') : t('watermark.aiOffline') }}
           </span>
-          <button v-if="hasSelection && !isProcessed" class="btn btn-primary btn-sm" :disabled="isAIProcessing"
-            @click="removeWatermark">
-            {{ isAIProcessing ? 'AI 处理中...' : '去除水印' }}
+          <button
+            v-if="hasSelection && !isProcessed"
+            class="btn btn-primary btn-sm"
+            :disabled="isAIProcessing"
+            @click="removeWatermark"
+          >
+            {{ isAIProcessing ? t('common.processing') : t('watermark.remove') }}
           </button>
           <button v-if="isProcessed" class="btn btn-success btn-sm" @click="download">
-            ⬇ 下载结果
+            ↓ {{ t('common.download') }}
           </button>
-          <button class="btn btn-secondary btn-sm" @click="reset">重新上传</button>
+          <button class="btn btn-secondary btn-sm" @click="reset">{{ t('common.reset') }}</button>
         </div>
       </div>
 
       <div class="editor-body">
-        <!-- Instructions -->
         <div class="instructions" v-if="!isProcessed">
           <div class="alert alert-info">
-            <span v-if="!hasSelection">👆 在图片上拖拽鼠标框选水印区域</span>
-            <span v-else>✅ 已选中水印区域，点击「去除水印」处理</span>
+            <span v-if="!hasSelection">👆 {{ t('watermark.selectHint') }}</span>
+            <span v-else>✓ {{ t('watermark.selectedHint') }}</span>
           </div>
         </div>
 
-        <!-- Processed badge -->
         <div class="instructions" v-if="isProcessed">
-          <div class="alert alert-success">✅ 水印已去除！点击下载按钮保存结果</div>
+          <div class="alert alert-success">✓ {{ t('watermark.done') }}</div>
         </div>
 
-        <!-- Canvas Area -->
         <div class="canvas-area" ref="wrapperRef">
           <div class="canvas-container" :style="{ maxWidth: '100%', overflow: 'auto' }">
-            <canvas ref="canvasRef" class="main-canvas" :class="{ 'ai-processing': isAIProcessing }"
-              @mousedown="onMouseDown" @mousemove="onMouseMove" @mouseup="onMouseUp" @mouseleave="onMouseUp"
-              @touchstart="onTouchStart" @touchmove="onTouchMove" @touchend="onTouchEnd"></canvas>
+            <canvas
+              ref="canvasRef"
+              class="main-canvas"
+              :class="{ 'ai-processing': isAIProcessing }"
+              @mousedown="onMouseDown"
+              @mousemove="onMouseMove"
+              @mouseup="finishSelection"
+              @mouseleave="finishSelection"
+              @touchstart="onTouchStart"
+              @touchmove="onTouchMove"
+              @touchend="finishSelection"
+            ></canvas>
 
-            <!-- AI 处理加载遮罩 -->
             <div v-if="isAIProcessing" class="ai-loading-overlay">
               <div class="ai-loading-content">
                 <div class="ai-spinner"></div>
-                <p class="ai-loading-text">AI 模型正在修复中...</p>
-                <p class="ai-loading-hint">LaMa 深度学习模型分析图像并智能填充</p>
+                <p class="ai-loading-text">{{ t('watermark.aiLoadingTitle') }}</p>
+                <p class="ai-loading-hint">{{ t('watermark.aiLoadingHint') }}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Controls -->
         <div class="controls-row" v-if="hasSelection && !isProcessed">
           <div class="control-group">
-            <label class="control-label">去除方式</label>
+            <label class="control-label">{{ t('watermark.methodLabel') }}</label>
             <div class="method-options">
-              <label v-for="method in [
-                { id: 'ai', label: '🤖 AI 修复', desc: 'LaMa 深度学习模型智能修复' },
-                { id: 'smart', label: '智能填充', desc: '浏览器本地边缘填充' },
-                { id: 'blur', label: '模糊处理', desc: '模糊水印区域' },
-                { id: 'crop', label: '裁剪', desc: '直接裁去该区域' }
-              ]" :key="method.id" class="method-option"
-                :class="{ active: removeMethod === method.id, 'ai-option': method.id === 'ai' }">
+              <label
+                v-for="method in methods"
+                :key="method.id"
+                class="method-option"
+                :class="{ active: removeMethod === method.id, 'ai-option': method.id === 'ai' }"
+              >
                 <input type="radio" :value="method.id" v-model="removeMethod" hidden />
                 <span class="method-name">{{ method.label }}</span>
                 <span class="method-desc">{{ method.desc }}</span>
@@ -667,7 +607,7 @@ function clearSelection() {
           </div>
 
           <div class="control-group" v-if="removeMethod === 'ai'">
-            <label class="control-label">边缘扩展: {{ padding }}px（扩大修复范围提高质量）</label>
+            <label class="control-label">{{ t('watermark.paddingLabel', { value: padding }) }}</label>
             <div class="slider-row">
               <input type="range" min="0" max="30" v-model.number="padding" />
               <span class="slider-value">{{ padding }}</span>
@@ -675,7 +615,7 @@ function clearSelection() {
           </div>
 
           <div class="control-group" v-if="removeMethod === 'blur'">
-            <label class="control-label">模糊强度: {{ blurRadius }}px</label>
+            <label class="control-label">{{ t('watermark.blurLabel', { value: blurRadius }) }}</label>
             <div class="slider-row">
               <input type="range" min="1" max="30" v-model.number="blurRadius" />
               <span class="slider-value">{{ blurRadius }}</span>
@@ -685,60 +625,36 @@ function clearSelection() {
           <div class="selection-actions">
             <button class="btn btn-primary" :disabled="isAIProcessing" @click="removeWatermark">
               <span v-if="isAIProcessing" class="btn-spinner"></span>
-              {{ isAIProcessing ? 'AI 处理中...' : removeMethod === 'ai' ? '🚀 AI 智能去除' : '去除水印' }}
+              {{ isAIProcessing ? t('common.processing') : removeMethod === 'ai' ? t('watermark.aiRemove') : t('watermark.remove') }}
             </button>
             <button class="btn btn-secondary" @click="clearSelection">
-              重新框选
+              {{ t('watermark.clearSelection') }}
             </button>
           </div>
         </div>
 
-        <!-- Post-process actions -->
         <div class="controls-row" v-if="isProcessed">
           <button class="btn btn-success" @click="download" style="width:100%; padding: 14px 32px; font-size: 1rem;">
-            ⬇ 下载处理后的图片
+            ↓ {{ t('watermark.downloadResult') }}
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Tips -->
     <div class="card tips-card" v-if="!originalImage">
-      <h3 class="tips-title">使用提示</h3>
+      <h2 class="tips-title">{{ t('watermark.tipsTitle') }}</h2>
       <div class="tips-grid">
-        <div class="tip-item">
-          <span class="tip-icon">🤖</span>
+        <div v-for="tip in t('watermark.tips')" :key="tip.title" class="tip-item">
+          <span class="tip-icon">{{ tip.icon }}</span>
           <div>
-            <strong>AI 修复（推荐）</strong>
-            <p>基于 LaMa 深度学习模型，智能重建水印下的原始纹理，效果远超传统方法</p>
-          </div>
-        </div>
-        <div class="tip-item">
-          <span class="tip-icon">🎯</span>
-          <div>
-            <strong>精准框选</strong>
-            <p>框选水印时稍微留一点边距，AI 修复效果更好；可通过「边缘扩展」自动扩大</p>
-          </div>
-        </div>
-        <div class="tip-item">
-          <span class="tip-icon">🧠</span>
-          <div>
-            <strong>智能填充</strong>
-            <p>浏览器本地处理的备用方案，适合简单背景，无需后端服务</p>
-          </div>
-        </div>
-        <div class="tip-item">
-          <span class="tip-icon">🌫️</span>
-          <div>
-            <strong>模糊 / 裁剪</strong>
-            <p>适合复杂背景的快速处理，模糊遮盖或直接裁去水印所在区域</p>
+            <strong>{{ tip.title }}</strong>
+            <p>{{ tip.text }}</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Ad Inline -->
-    <div v-if="originalImage" class="ad-slot ad-inline">Google AdSense · 工具内广告位</div>
+    <div v-if="originalImage" class="ad-slot ad-inline">{{ t('site.toolAd') }}</div>
   </div>
 </template>
 
@@ -747,7 +663,6 @@ function clearSelection() {
   padding: 24px;
 }
 
-/* --- Editor --- */
 .editor-card {
   overflow: hidden;
 }
@@ -767,11 +682,16 @@ function clearSelection() {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .file-name {
   font-weight: 600;
   font-size: 0.9375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
 }
 
 .file-meta {
@@ -781,20 +701,16 @@ function clearSelection() {
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-/* --- Editor Body --- */
 .editor-body {
   padding: 20px 24px;
 }
 
-.instructions {
-  margin-bottom: 16px;
-}
-
-/* --- Canvas --- */
+.instructions,
 .canvas-area {
   margin-bottom: 16px;
 }
@@ -806,6 +722,7 @@ function clearSelection() {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   padding: 16px;
+  position: relative;
 }
 
 .main-canvas {
@@ -816,7 +733,6 @@ function clearSelection() {
   border-radius: 4px;
 }
 
-/* --- Controls --- */
 .controls-row {
   display: flex;
   flex-direction: column;
@@ -837,7 +753,6 @@ function clearSelection() {
   color: var(--text);
 }
 
-/* --- Method Options --- */
 .method-options {
   display: flex;
   gap: 8px;
@@ -855,7 +770,7 @@ function clearSelection() {
   cursor: pointer;
   transition: all 0.15s ease;
   flex: 1;
-  min-width: 100px;
+  min-width: 120px;
 }
 
 .method-option:hover {
@@ -888,14 +803,16 @@ function clearSelection() {
   font-size: 0.6875rem;
   color: var(--text-muted);
   margin-top: 2px;
+  text-align: center;
 }
 
 .method-option.active .method-desc {
   color: var(--primary);
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
-.slider-row {
+.slider-row,
+.selection-actions {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -909,8 +826,6 @@ function clearSelection() {
 }
 
 .selection-actions {
-  display: flex;
-  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -930,7 +845,6 @@ function clearSelection() {
   }
 }
 
-/* --- Tips Card --- */
 .tips-card {
   padding: 24px;
   margin-top: 16px;
@@ -972,7 +886,6 @@ function clearSelection() {
   margin-top: 2px;
 }
 
-/* --- AI Status --- */
 .ai-status {
   display: inline-flex;
   align-items: center;
@@ -1013,7 +926,6 @@ function clearSelection() {
 }
 
 @keyframes ai-pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -1022,11 +934,6 @@ function clearSelection() {
   50% {
     opacity: 0.4;
   }
-}
-
-/* --- AI Loading Overlay --- */
-.canvas-container {
-  position: relative;
 }
 
 .ai-loading-overlay {
@@ -1055,12 +962,6 @@ function clearSelection() {
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .ai-loading-text {
   font-size: 0.9375rem;
   font-weight: 600;
@@ -1079,7 +980,8 @@ function clearSelection() {
 }
 
 @media (max-width: 768px) {
-  .upload-card {
+  .upload-card,
+  .tips-card {
     padding: 16px;
   }
 
@@ -1097,56 +999,30 @@ function clearSelection() {
     min-height: 150px;
   }
 
-  .method-options {
+  .method-options,
+  .selection-actions {
     flex-direction: column;
   }
 
   .method-option {
     padding: 14px 16px;
     min-width: auto;
+    width: 100%;
   }
 
-  .method-name {
-    font-size: 0.9375rem;
-  }
-
-  .method-desc {
-    font-size: 0.75rem;
+  .selection-actions .btn {
+    width: 100%;
+    min-height: 48px;
   }
 
   .tips-grid {
     grid-template-columns: 1fr;
   }
-
-  .tips-card {
-    padding: 16px;
-  }
-
-  .control-label {
-    font-size: 0.9375rem;
-  }
-
-  .slider-row {
-    gap: 16px;
-  }
-
-  .slider-value {
-    font-size: 0.9375rem;
-    min-width: 36px;
-  }
-
-  .selection-actions {
-    flex-direction: column;
-  }
-
-  .selection-actions .btn {
-    flex: 1;
-    min-height: 48px;
-  }
 }
 
 @media (max-width: 480px) {
-  .upload-card {
+  .upload-card,
+  .tips-card {
     padding: 12px;
   }
 
@@ -1159,13 +1035,9 @@ function clearSelection() {
     max-width: 180px;
   }
 
-  .file-meta {
-    font-size: 0.7rem;
-  }
-
+  .file-meta,
   .ai-status {
     font-size: 0.7rem;
-    padding: 3px 8px;
   }
 
   .editor-body {
@@ -1175,38 +1047,6 @@ function clearSelection() {
   .canvas-container {
     padding: 4px;
     min-height: 120px;
-  }
-
-  .main-canvas {
-    border-radius: 2px;
-  }
-
-  .method-option {
-    padding: 12px;
-  }
-
-  .tips-card {
-    padding: 12px;
-  }
-
-  .tip-item {
-    gap: 12px;
-  }
-
-  .tip-item strong {
-    font-size: 0.875rem;
-  }
-
-  .tip-item p {
-    font-size: 0.8125rem;
-  }
-
-  .ai-loading-text {
-    font-size: 0.875rem;
-  }
-
-  .ai-loading-hint {
-    font-size: 0.7rem;
   }
 }
 </style>
