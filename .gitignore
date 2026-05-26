@@ -87,6 +87,7 @@ public/*
 !public/
 !public/favicon.svg
 !public/robots.txt
+!public/sitemap.xml
 !public/sitemap.example.xml
 
 # Storybook build outputs
