@@ -318,6 +318,19 @@ function reset() {
       </div>
     </div>
 
+    <div class="card tips-card" v-if="!originalImage">
+      <h2 class="tips-title">{{ t('compressor.tipsTitle') }}</h2>
+      <div class="tips-grid">
+        <div v-for="tip in t('compressor.tips')" :key="tip.title" class="tip-item">
+          <span class="tip-icon">{{ tip.icon }}</span>
+          <div>
+            <strong>{{ tip.title }}</strong>
+            <p>{{ tip.text }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <AdSenseSlot
       v-if="originalImage"
       class-name="ad-inline"
@@ -687,6 +700,62 @@ function reset() {
 
   .dim-input {
     width: 100%;
+  }
+
+  .tips-card {
+    padding: 12px;
+  }
+
+  .tips-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tips card */
+.tips-card {
+  padding: 24px;
+  margin-top: 16px;
+}
+
+.tips-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.tip-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.tip-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.tip-item strong {
+  font-size: 0.8125rem;
+  color: var(--text);
+  display: block;
+}
+
+.tip-item p {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .tips-card {
+    padding: 16px;
   }
 }
 </style>

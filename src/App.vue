@@ -1,114 +1,53 @@
 <script setup>
-import { computed, onMounted, provide, ref, watchEffect } from 'vue'
-import WatermarkRemover from './components/WatermarkRemover.vue'
-import ImageCompressor from './components/ImageCompressor.vue'
-import AdSenseSlot from './components/AdSenseSlot.vue'
+import { computed, inject, onMounted, provide, watchEffect } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { I18N_KEY, createI18n } from './i18n'
 import { loadAdSense } from './adsense'
 
 const i18n = createI18n()
 provide(I18N_KEY, i18n)
 
-const activeTab = refFromHash()
+const route = useRoute()
+const router = useRouter()
 
-const tabs = computed(() => [
-  { id: 'watermark', ...i18n.t('tabs.watermark') },
-  { id: 'compress', ...i18n.t('tabs.compress') },
+const navLinks = computed(() => [
+  { path: '/image-watermark-remover', ...i18n.t('tabs.watermark') },
+  { path: '/image-compressor', ...i18n.t('tabs.compress') },
+  { path: '/video-link-extractor', ...i18n.t('tabs.video') },
 ])
 
-const currentTab = computed(() => tabs.value.find((tab) => tab.id === activeTab.value) ?? tabs.value[0])
-const currentTitle = computed(() =>
-  activeTab.value === 'compress' ? i18n.t('site.titleCompress') : i18n.t('site.titleWatermark'),
-)
-const currentDescription = computed(() =>
-  activeTab.value === 'compress'
-    ? i18n.t('site.descriptionCompress')
-    : i18n.t('site.descriptionWatermark'),
-)
-
-const adSlots = {
-  banner: import.meta.env.VITE_ADSENSE_SLOT_BANNER || '',
-  sidebar: import.meta.env.VITE_ADSENSE_SLOT_SIDEBAR || '',
-  inline: import.meta.env.VITE_ADSENSE_SLOT_INLINE || '',
-}
-
-onMounted(loadAdSense)
-
-function refFromHash() {
-  const initial = window.location.hash === '#compress' ? 'compress' : 'watermark'
-  const value = ref(initial)
-
-  window.addEventListener('hashchange', () => {
-    value.value = window.location.hash === '#compress' ? 'compress' : 'watermark'
-  })
-
-  return value
-}
-
-function setActiveTab(tabId) {
-  activeTab.value = tabId
-  const nextHash = tabId === 'compress' ? '#compress' : '#watermark'
-  if (window.location.hash !== nextHash) {
-    window.history.replaceState(null, '', nextHash)
-  }
-}
-
-function setMeta(name, content) {
-  let tag = document.querySelector(`meta[name="${name}"]`)
-  if (!tag) {
-    tag = document.createElement('meta')
-    tag.setAttribute('name', name)
-    document.head.appendChild(tag)
-  }
-  tag.setAttribute('content', content)
-}
-
-function setPropertyMeta(property, content) {
-  let tag = document.querySelector(`meta[property="${property}"]`)
-  if (!tag) {
-    tag = document.createElement('meta')
-    tag.setAttribute('property', property)
-    document.head.appendChild(tag)
-  }
-  tag.setAttribute('content', content)
+function isActive(path) {
+  return route.path === path
 }
 
 watchEffect(() => {
   const lang = i18n.language.value
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en'
-  document.title = currentTitle.value
-  setMeta('description', currentDescription.value)
-  setMeta('keywords', i18n.t('site.keywords'))
-  setPropertyMeta('og:title', currentTitle.value)
-  setPropertyMeta('og:description', currentDescription.value)
-  setPropertyMeta('og:locale', lang === 'zh' ? 'zh_CN' : 'en_US')
-  setPropertyMeta('og:site_name', i18n.t('site.name'))
-  setPropertyMeta('twitter:title', currentTitle.value)
-  setPropertyMeta('twitter:description', currentDescription.value)
 })
+
+onMounted(loadAdSense)
 </script>
 
 <template>
   <div class="app">
     <header class="header">
       <div class="container header-inner">
-        <a href="#watermark" class="logo" @click.prevent="setActiveTab('watermark')">
+        <router-link to="/" class="logo">
           <span class="logo-icon">🖼️</span>
           <span class="logo-text">{{ i18n.t('site.name') }}</span>
-        </a>
+        </router-link>
 
         <nav class="nav" :aria-label="i18n.t('site.tagline')">
-          <button
-            v-for="tab in tabs"
-            :key="tab.id"
+          <router-link
+            v-for="link in navLinks"
+            :key="link.id"
+            :to="link.path"
             class="nav-tab"
-            :class="{ active: activeTab === tab.id }"
-            type="button"
-            @click="setActiveTab(tab.id)"
+            :class="{ active: isActive(link.path) }"
           >
-            <span class="nav-tab-icon">{{ tab.icon }}</span>
-            <span class="nav-tab-label">{{ tab.label }}</span>
-          </button>
+            <span class="nav-tab-icon">{{ link.icon }}</span>
+            <span class="nav-tab-label">{{ link.label }}</span>
+          </router-link>
         </nav>
 
         <div class="language-switcher" :aria-label="i18n.t('site.language')">
@@ -132,54 +71,8 @@ watchEffect(() => {
       </div>
     </header>
 
-    <div class="container">
-      <AdSenseSlot
-        class-name="ad-banner"
-        :label="i18n.t('site.adBanner')"
-        :slot="adSlots.banner"
-      />
-    </div>
-
     <main class="main">
-      <div class="container">
-        <section class="page-hero">
-          <h1 class="page-title">{{ currentTab.icon }} {{ currentTab.label }}</h1>
-          <p class="page-desc">{{ currentTab.desc }}</p>
-        </section>
-
-        <div class="main-layout">
-          <div class="tool-area">
-            <WatermarkRemover v-if="activeTab === 'watermark'" />
-            <ImageCompressor v-if="activeTab === 'compress'" />
-          </div>
-
-          <aside class="sidebar">
-            <AdSenseSlot
-              class-name="ad-sidebar"
-              :label="i18n.t('site.adSidebar')"
-              :slot="adSlots.sidebar"
-            />
-            <div class="card feature-card">
-              <h2 class="feature-card-title">{{ i18n.t('site.whyChoose') }}</h2>
-              <ul class="feature-list">
-                <li v-for="feature in i18n.t('site.features')" :key="feature.title">
-                  <span class="feature-icon">{{ feature.icon }}</span>
-                  <div>
-                    <strong>{{ feature.title }}</strong>
-                    <p>{{ feature.text }}</p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </aside>
-        </div>
-
-        <AdSenseSlot
-          class-name="ad-inline"
-          :label="i18n.t('site.adInline')"
-          :slot="adSlots.inline"
-        />
-      </div>
+      <router-view />
     </main>
 
     <footer class="footer">
@@ -246,6 +139,7 @@ watchEffect(() => {
   background: transparent;
   transition: all 0.15s ease;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .nav-tab {
@@ -284,88 +178,13 @@ watchEffect(() => {
   padding: 6px 10px;
   color: var(--text-secondary);
   min-height: 32px;
-}
-
-.page-hero {
-  text-align: center;
-  padding: 40px 0 32px;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-
-.page-desc {
-  font-size: 1rem;
-  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .main {
-  padding-bottom: 48px;
-}
-
-.main-layout {
-  display: flex;
-  gap: 32px;
-  align-items: flex-start;
-}
-
-.tool-area {
-  flex: 1;
-  min-width: 0;
-}
-
-.sidebar {
-  flex-shrink: 0;
-  width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.feature-card {
-  padding: 20px;
-}
-
-.feature-card-title {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  margin-bottom: 16px;
-  color: var(--text);
-}
-
-.feature-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.feature-list li {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
-
-.feature-icon {
-  font-size: 1.25rem;
-  line-height: 1.4;
-  flex-shrink: 0;
-}
-
-.feature-list strong {
-  font-size: 0.8125rem;
-  color: var(--text);
-  display: block;
-}
-
-.feature-list p {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
+  min-height: calc(100vh - 64px - 80px);
 }
 
 .footer {
@@ -420,33 +239,6 @@ watchEffect(() => {
     padding: 5px 8px;
     font-size: 0.8125rem;
   }
-
-  .page-hero {
-    padding: 20px 0 16px;
-    text-align: left;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .page-desc {
-    font-size: 0.9375rem;
-  }
-
-  .main-layout {
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .sidebar {
-    width: 100%;
-    order: -1;
-  }
-
-  .tool-area {
-    width: 100%;
-  }
 }
 
 @media (max-width: 480px) {
@@ -468,18 +260,6 @@ watchEffect(() => {
 
   .nav-tab {
     padding: 6px 18px;
-  }
-
-  .page-hero {
-    padding: 16px 0 12px;
-  }
-
-  .page-title {
-    font-size: 1.375rem;
-  }
-
-  .main {
-    padding-bottom: 32px;
   }
 
   .footer {
