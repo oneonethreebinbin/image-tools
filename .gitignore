@@ -89,6 +89,7 @@ public/*
 !public/robots.txt
 !public/sitemap.xml
 !public/sitemap.example.xml
+!public/_headers
 
 # Storybook build outputs
 .out
