@@ -90,7 +90,8 @@ public/*
 !public/sitemap.xml
 !public/sitemap.example.xml
 !public/_headers
-!public/baidu_verify_codeva-8lXRgXsl5H.html
+!public/_routes.json
+!public/baidu_verify_codeva-8lXRgXsl5H
 
 # Storybook build outputs
 .out
