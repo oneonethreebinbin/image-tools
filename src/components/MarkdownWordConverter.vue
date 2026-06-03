@@ -1,0 +1,854 @@
+<script setup>
+import { inject, ref, computed } from 'vue'
+import { I18N_KEY } from '../i18n'
+import AdSenseSlot from './AdSenseSlot.vue'
+import {
+    Document, Packer, Paragraph, TextRun, HeadingLevel,
+    AlignmentType, TableCell, TableRow, Table, WidthType
+} from 'docx'
+import { saveAs } from 'file-saver'
+import { marked } from 'marked'
+
+const { t } = inject(I18N_KEY)
+
+const markdownInput = ref('')
+const isProcessing = ref(false)
+const error = ref('')
+const fileName = ref('converted')
+const conversionMode = ref('md-to-word') // 'md-to-word' or 'word-to-md'
+
+// Word to Markdown
+const wordFile = ref(null)
+const wordFileName = ref('')
+const extractedText = ref('')
+const extractedMarkdown = ref('')
+const isWordProcessing = ref(false)
+const wordError = ref('')
+const wordFileInput = ref(null)
+
+const toolAdSlot = import.meta.env.VITE_ADSENSE_SLOT_TOOL || import.meta.env.VITE_ADSENSE_SLOT_INLINE || ''
+
+const hasMarkdown = computed(() => markdownInput.value.trim().length > 0)
+
+// Configure marked for better parsing
+marked.setOptions({
+    gfm: true,
+    breaks: true,
+})
+
+// Parse markdown heading level
+function getHeadingLevel(token) {
+    const map = {
+        1: HeadingLevel.HEADING_1,
+        2: HeadingLevel.HEADING_2,
+        3: HeadingLevel.HEADING_3,
+        4: HeadingLevel.HEADING_4,
+        5: HeadingLevel.HEADING_5,
+        6: HeadingLevel.HEADING_6,
+    }
+    return map[token.depth] || HeadingLevel.HEADING_1
+}
+
+// Create TextRun from inline tokens
+function createTextRuns(tokens) {
+    if (!tokens) return [new TextRun('')]
+    return tokens.map(token => {
+        if (token.type === 'text') {
+            return new TextRun({ text: token.text, font: 'Arial' })
+        } else if (token.type === 'strong') {
+            return new TextRun({ text: token.text, bold: true, font: 'Arial' })
+        } else if (token.type === 'em') {
+            return new TextRun({ text: token.text, italics: true, font: 'Arial' })
+        } else if (token.type === 'codespan') {
+            return new TextRun({ text: token.text, font: 'Courier New', shading: { fill: 'E8E8E8' } })
+        } else if (token.type === 'link') {
+            return new TextRun({ text: token.text || token.href, color: '0563C1', underline: {}, font: 'Arial' })
+        } else if (token.type === 'br') {
+            return new TextRun({ break: 1 })
+        } else if (token.type === 'list') {
+            return new TextRun({ text: token.items?.map(i => i.text).join(', ') || '' })
+        } else if (token.type === 'code') {
+            return new TextRun({ text: token.text, font: 'Courier New' })
+        } else if (token.type === 'image') {
+            return new TextRun({ text: `[Image: ${token.text || 'image'}]`, italics: true, color: '888888' })
+        } else if (token.type === 'space') {
+            return new TextRun('')
+        } else {
+            return new TextRun({ text: token.text || token.raw || '', font: 'Arial' })
+        }
+    })
+}
+
+// Parse tokens into docx paragraphs
+function tokensToDocxParagraphs(tokens, level = 0) {
+    const paragraphs = []
+
+    for (const token of tokens) {
+        if (token.type === 'heading') {
+            paragraphs.push(
+                new Paragraph({
+                    children: createTextRuns(token.tokens),
+                    heading: getHeadingLevel(token),
+                    spacing: { before: 240, after: 120 },
+                })
+            )
+        } else if (token.type === 'paragraph') {
+            paragraphs.push(
+                new Paragraph({
+                    children: createTextRuns(token.tokens),
+                    spacing: { after: 120 },
+                })
+            )
+        } else if (token.type === 'list') {
+            token.items.forEach((item, index) => {
+                const prefix = token.ordered ? `${index + 1}. ` : '• '
+                paragraphs.push(
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: prefix, bold: true, font: 'Arial' }),
+                            ...createTextRuns(item.tokens),
+                        ],
+                        indent: { left: 720 * (level + 1) },
+                        spacing: { after: 60 },
+                    })
+                )
+                // Handle nested lists
+                if (item.tokens) {
+                    const nestedTokens = item.tokens.filter(t => t.type === 'list')
+                    nestedTokens.forEach(nested => {
+                        const nestedParagraphs = tokensToDocxParagraphs([nested], level + 1)
+                        paragraphs.push(...nestedParagraphs)
+                    })
+                }
+            })
+        } else if (token.type === 'code') {
+            // Code block
+            const codeLines = token.text.split('\n')
+            codeLines.forEach(line => {
+                paragraphs.push(
+                    new Paragraph({
+                        children: [new TextRun({ text: line, font: 'Courier New' })],
+                        shading: { fill: 'F5F5F5' },
+                        spacing: { after: 40 },
+                    })
+                )
+            })
+        } else if (token.type === 'blockquote') {
+            if (token.tokens) {
+                const quoteParagraphs = tokensToDocxParagraphs(token.tokens, level)
+                quoteParagraphs.forEach(p => {
+                    paragraphs.push(p)
+                })
+            }
+        } else if (token.type === 'table') {
+            // Simple table rendering
+            if (token.header && token.rows) {
+                const allRows = [token.header, ...token.rows]
+                const tableRows = allRows.map((row, rowIndex) =>
+                    new TableRow({
+                        children: row.map(cell =>
+                            new TableCell({
+                                children: [new Paragraph({
+                                    children: createTextRuns(cell.tokens),
+                                    spacing: { after: 40 },
+                                })],
+                                width: { size: 3000, type: WidthType.DXA },
+                            })
+                        ),
+                    })
+                )
+                paragraphs.push(
+                    new Paragraph({ children: [] }) // spacer
+                )
+            }
+        } else if (token.type === 'hr') {
+            paragraphs.push(
+                new Paragraph({
+                    children: [new TextRun({ text: '────────────────────────────', color: 'CCCCCC' })],
+                    spacing: { before: 120, after: 120 },
+                })
+            )
+        } else if (token.type === 'space') {
+            // skip
+        } else {
+            // Fallback: try to extract text
+            const rawText = token.raw || token.text || ''
+            if (rawText.trim()) {
+                paragraphs.push(
+                    new Paragraph({
+                        children: [new TextRun({ text: rawText, font: 'Arial' })],
+                        spacing: { after: 120 },
+                    })
+                )
+            }
+        }
+    }
+
+    return paragraphs
+}
+
+// Convert Markdown to Word
+async function convertToWord() {
+    if (!markdownInput.value.trim()) return
+
+    isProcessing.value = true
+    error.value = ''
+
+    try {
+        const tokens = marked.lexer(markdownInput.value)
+        const paragraphs = tokensToDocxParagraphs(tokens)
+
+        if (paragraphs.length === 0) {
+            error.value = t('markdown.emptyResult')
+            isProcessing.value = false
+            return
+        }
+
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: paragraphs,
+            }],
+        })
+
+        const blob = await Packer.toBlob(doc)
+        const safeName = fileName.value.trim() || 'converted'
+        saveAs(blob, `${safeName}.docx`)
+    } catch (e) {
+        console.error('Conversion error:', e)
+        error.value = t('markdown.conversionError')
+    } finally {
+        isProcessing.value = false
+    }
+}
+
+// Handle Word file upload for Word to Markdown
+function handleWordFile(file) {
+    if (!file) return
+    wordError.value = ''
+
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext !== 'docx' && ext !== 'doc') {
+        wordError.value = t('markdown.invalidWordFile')
+        return
+    }
+
+    if (ext === 'doc') {
+        wordError.value = t('markdown.docNotSupported')
+        return
+    }
+
+    wordFile.value = file
+    wordFileName.value = file.name.replace(/\.[^.]+$/, '')
+    isWordProcessing.value = true
+
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+        try {
+            const arrayBuffer = e.target.result
+            const result = await import('mammoth')
+            const mammoth = result.default || result
+
+            // Convert to HTML
+            const htmlResult = await mammoth.convertToHtml({ arrayBuffer })
+            const html = htmlResult.value
+
+            // Convert HTML to markdown-like text
+            const markdown = htmlToMarkdown(html)
+            extractedMarkdown.value = markdown
+            extractedText.value = html
+
+            isWordProcessing.value = false
+        } catch (err) {
+            console.error('Word parse error:', err)
+            wordError.value = t('markdown.wordParseError')
+            isWordProcessing.value = false
+        }
+    }
+
+    reader.onerror = () => {
+        wordError.value = t('markdown.fileReadError')
+        isWordProcessing.value = false
+    }
+
+    reader.readAsArrayBuffer(file)
+}
+
+// Simple HTML to Markdown converter
+function htmlToMarkdown(html) {
+    let md = html
+
+    // Headers
+    md = md.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+    md = md.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+    md = md.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+    md = md.replace(/<h4[^>]*>(.*?)<\/h4>/gi, '#### $1\n\n')
+    md = md.replace(/<h5[^>]*>(.*?)<\/h5>/gi, '##### $1\n\n')
+    md = md.replace(/<h6[^>]*>(.*?)<\/h6>/gi, '###### $1\n\n')
+
+    // Bold and Italic
+    md = md.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+    md = md.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**')
+    md = md.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+    md = md.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
+
+    // Links
+    md = md.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+
+    // Code
+    md = md.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
+
+    // Pre / code blocks
+    md = md.replace(/<pre[^>]*><code[^>]*>(.*?)<\/code><\/pre>/gi, '```\n$1\n```\n\n')
+    md = md.replace(/<pre[^>]*>(.*?)<\/pre>/gi, '```\n$1\n```\n\n')
+
+    // Lists
+    md = md.replace(/<ul[^>]*>/gi, '\n')
+    md = md.replace(/<\/ul>/gi, '\n')
+    md = md.replace(/<ol[^>]*>/gi, '\n')
+    md = md.replace(/<\/ol>/gi, '\n')
+    md = md.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+
+    // Paragraphs
+    md = md.replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+
+    // Line breaks
+    md = md.replace(/<br\s*\/?>/gi, '\n')
+    md = md.replace(/<hr\s*\/?>/gi, '\n---\n')
+
+    // Blockquotes
+    md = md.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n')
+
+    // Tables (simple)
+    md = md.replace(/<table[^>]*>/gi, '\n')
+    md = md.replace(/<\/table>/gi, '\n')
+    md = md.replace(/<thead[^>]*>/gi, '')
+    md = md.replace(/<\/thead>/gi, '')
+    md = md.replace(/<tbody[^>]*>/gi, '')
+    md = md.replace(/<\/tbody>/gi, '')
+    md = md.replace(/<tr[^>]*>(.*?)<\/tr>/gi, '$1\n')
+    md = md.replace(/<th[^>]*>(.*?)<\/th>/gi, '| $1 ')
+    md = md.replace(/<td[^>]*>(.*?)<\/td>/gi, '| $1 ')
+
+    // Images
+    md = md.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi, '![$1]($2)')
+    md = md.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gi, '![$2]($1)')
+    md = md.replace(/<img[^>]*src="([^"]*)"[^>]*\/?>/gi, '![]($1)')
+
+    // Remove remaining HTML tags
+    md = md.replace(/<[^>]+>/g, '')
+
+    // Decode HTML entities
+    md = md.replace(/&/g, '&')
+    md = md.replace(/</g, '<')
+    md = md.replace(/>/g, '>')
+    md = md.replace(/&nbsp;/g, ' ')
+    md = md.replace(/"/g, '"')
+    md = md.replace(/&#39;/g, "'")
+    md = md.replace(/&#[0-9]+;/g, '')
+
+    // Clean up extra blank lines
+    md = md.replace(/\n{3,}/g, '\n\n')
+    md = md.trim()
+
+    return md
+}
+
+function onWordFileChange(event) {
+    const file = event.target.files?.[0]
+    if (file) handleWordFile(file)
+}
+
+function onWordDrop(event) {
+    const file = event.dataTransfer?.files?.[0]
+    if (file) handleWordFile(file)
+}
+
+function triggerWordUpload() {
+    wordFileInput.value?.click()
+}
+
+function downloadMarkdown() {
+    if (!extractedMarkdown.value) return
+    const blob = new Blob([extractedMarkdown.value], { type: 'text/markdown;charset=utf-8' })
+    saveAs(blob, `${wordFileName.value || 'converted'}.md`)
+}
+
+function downloadHtml() {
+    if (!extractedText.value) return
+    const blob = new Blob([extractedText.value], { type: 'text/html;charset=utf-8' })
+    saveAs(blob, `${wordFileName.value || 'converted'}.html`)
+}
+
+function resetWord() {
+    wordFile.value = null
+    wordFileName.value = ''
+    extractedText.value = ''
+    extractedMarkdown.value = ''
+    wordError.value = ''
+    if (wordFileInput.value) wordFileInput.value.value = ''
+}
+
+function resetMarkdown() {
+    markdownInput.value = ''
+    error.value = ''
+    fileName.value = 'converted'
+}
+</script>
+
+<template>
+    <div class="markdown-converter">
+        <!-- Mode selector tabs -->
+        <div class="mode-tabs">
+            <button class="mode-tab" :class="{ active: conversionMode === 'md-to-word' }"
+                @click="conversionMode = 'md-to-word'; error = ''; wordError = ''">
+                <span class="mode-icon">📝</span>
+                <span>{{ t('markdown.modeMdToWord') }}</span>
+            </button>
+            <button class="mode-tab" :class="{ active: conversionMode === 'word-to-md' }"
+                @click="conversionMode = 'word-to-md'; error = ''; wordError = ''">
+                <span class="mode-icon">📄</span>
+                <span>{{ t('markdown.modeWordToMd') }}</span>
+            </button>
+        </div>
+
+        <!-- Error display -->
+        <div v-if="error || wordError" class="alert alert-error" style="margin-bottom: 16px;">
+            {{ error || wordError }}
+        </div>
+
+        <!-- Markdown to Word mode -->
+        <div v-if="conversionMode === 'md-to-word'" class="card editor-card">
+            <div class="editor-body">
+                <div class="input-section">
+                    <div class="control-group">
+                        <label class="control-label">{{ t('markdown.fileNameLabel') }}</label>
+                        <input type="text" v-model="fileName" class="file-name-input"
+                            :placeholder="t('markdown.fileNamePlaceholder')" />
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">{{ t('markdown.markdownInputLabel') }}</label>
+                        <textarea v-model="markdownInput" class="markdown-textarea"
+                            :placeholder="t('markdown.markdownPlaceholder')" rows="15"></textarea>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" :disabled="!hasMarkdown || isProcessing" @click="convertToWord">
+                            <span v-if="isProcessing" class="mini-spinner"></span>
+                            {{ isProcessing ? t('markdown.converting') : t('markdown.convertToWord') }}
+                        </button>
+                        <button class="btn btn-secondary" @click="resetMarkdown" v-if="markdownInput">
+                            {{ t('common.reset') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Word to Markdown mode -->
+        <div v-if="conversionMode === 'word-to-md'" class="card editor-card">
+            <div class="editor-body">
+                <div v-if="!wordFile" class="upload-card">
+                    <div class="drop-zone" @click="triggerWordUpload" @drop.prevent="onWordDrop" @dragover.prevent>
+                        <span class="drop-zone-icon">📄</span>
+                        <p class="drop-zone-title">{{ t('markdown.uploadWordTitle') }}</p>
+                        <p class="drop-zone-hint">{{ t('markdown.uploadWordHint') }}</p>
+                    </div>
+                    <input ref="wordFileInput" type="file" accept=".docx,.doc" hidden @change="onWordFileChange" />
+                </div>
+
+                <div v-if="wordFile" class="result-section">
+                    <div class="editor-header">
+                        <div class="file-info">
+                            <span class="file-name">{{ wordFile.name }}</span>
+                            <span class="file-meta">{{ t('markdown.wordFileSize') }}: {{ (wordFile.size /
+                                1024).toFixed(1) }} KB</span>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" @click="resetWord">{{ t('common.reset') }}</button>
+                    </div>
+
+                    <div v-if="isWordProcessing" class="processing-overlay">
+                        <span class="mini-spinner"></span>
+                        {{ t('common.processing') }}
+                    </div>
+
+                    <div v-if="extractedMarkdown" class="result-content">
+                        <div class="result-header">
+                            <h3 class="result-title">{{ t('markdown.extractedResult') }}</h3>
+                            <div class="download-buttons">
+                                <button class="btn btn-success btn-sm" @click="downloadMarkdown">
+                                    ↓ {{ t('markdown.downloadMarkdown') }}
+                                </button>
+                                <button class="btn btn-secondary btn-sm" @click="downloadHtml">
+                                    ↓ {{ t('markdown.downloadHtml') }}
+                                </button>
+                            </div>
+                        </div>
+                        <textarea class="markdown-textarea result-textarea" :value="extractedMarkdown" readonly
+                            rows="20"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips card -->
+        <div class="card tips-card" v-if="conversionMode === 'md-to-word'">
+            <h2 class="tips-title">{{ t('markdown.tipsTitle') }}</h2>
+            <div class="tips-grid">
+                <div v-for="tip in t('markdown.tips')" :key="tip.title" class="tip-item">
+                    <span class="tip-icon">{{ tip.icon }}</span>
+                    <div>
+                        <strong>{{ tip.title }}</strong>
+                        <p>{{ tip.text }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <AdSenseSlot class-name="ad-inline" :label="t('site.toolAd')" :slot="toolAdSlot" />
+    </div>
+</template>
+
+<style scoped>
+.mode-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.mode-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 24px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    background: white;
+    transition: all 0.15s ease;
+    flex: 1;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.mode-tab:hover {
+    border-color: var(--primary);
+}
+
+.mode-tab.active {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.mode-icon {
+    font-size: 1.25rem;
+}
+
+.editor-card {
+    overflow: hidden;
+}
+
+.editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: #FAFAFA;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.file-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.file-name {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
+}
+
+.file-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.editor-body {
+    padding: 24px;
+}
+
+.input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.control-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.file-name-input {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    font-size: 0.9375rem;
+    max-width: 300px;
+}
+
+.file-name-input:focus {
+    border-color: var(--border-focus);
+}
+
+.markdown-textarea {
+    width: 100%;
+    min-height: 300px;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    outline: none;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    resize: vertical;
+}
+
+.markdown-textarea:focus {
+    border-color: var(--border-focus);
+}
+
+.result-textarea {
+    background: #FAFAFA;
+    cursor: default;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.action-buttons .btn {
+    padding: 12px 28px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Upload card */
+.upload-card {
+    padding: 24px;
+}
+
+.drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.drop-zone:hover {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.drop-zone-icon {
+    font-size: 3rem;
+}
+
+.drop-zone-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.drop-zone-hint {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+}
+
+/* Result section */
+.result-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.processing-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px;
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+}
+
+.result-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.result-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.download-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+/* Spinner */
+.mini-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #E5E7EB;
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: md-spin 0.6s linear infinite;
+}
+
+@keyframes md-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Tips */
+.tips-card {
+    padding: 24px;
+    margin-top: 16px;
+}
+
+.tips-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+}
+
+.tip-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.tip-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    line-height: 1.4;
+}
+
+.tip-item strong {
+    font-size: 0.8125rem;
+    color: var(--text);
+    display: block;
+}
+
+.tip-item p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .mode-tabs {
+        flex-direction: column;
+    }
+
+    .mode-tab {
+        padding: 12px 16px;
+    }
+
+    .editor-body {
+        padding: 16px;
+    }
+
+    .markdown-textarea {
+        min-height: 200px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .action-buttons .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .download-buttons {
+        width: 100%;
+    }
+
+    .download-buttons .btn {
+        flex: 1;
+    }
+
+    .tips-card {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .editor-body {
+        padding: 12px;
+    }
+
+    .file-name-input {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .tips-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
