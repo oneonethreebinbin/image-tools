@@ -8,10 +8,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Push to HuggingFace Space
-        uses: huggingface/huggingface-space-sync@main
         with:
-          hf-token: ${{ secrets.HF_token }}
-          hf-username: ${{ secrets.HF_username }}
-          space-name: watermark-remover
+          fetch-depth: 0
+
+      - name: Configure Git User
+        run: |
+          git config user.name "viewmax"
+          git config user.email "viewmax@hf.co"
+
+      - name: Push to HF Space
+        env:
+          HF_URL: https://${{ secrets.HF_username }}:${{ secrets.HF_token }}@huggingface.co/spaces/viewmax/watermark-remover
+        run: |
+          git remote add hf $HF_URL || git remote set-url hf $HF_URL
+          git fetch hf || true
+          git push hf main --force
