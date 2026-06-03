@@ -29,6 +29,14 @@ const wordFileInput = ref(null)
 const toolAdSlot = import.meta.env.VITE_ADSENSE_SLOT_TOOL || import.meta.env.VITE_ADSENSE_SLOT_INLINE || ''
 
 const hasMarkdown = computed(() => markdownInput.value.trim().length > 0)
+const htmlPreview = computed(() => {
+    if (!markdownInput.value.trim()) return ''
+    try {
+        return marked.parse(markdownInput.value)
+    } catch {
+        return ''
+    }
+})
 
 // Configure marked for better parsing
 marked.setOptions({
@@ -420,28 +428,32 @@ function resetMarkdown() {
         <!-- Markdown to Word mode -->
         <div v-if="conversionMode === 'md-to-word'" class="card editor-card">
             <div class="editor-body">
-                <div class="input-section">
-                    <div class="control-group">
-                        <label class="control-label">{{ t('markdown.fileNameLabel') }}</label>
-                        <input type="text" v-model="fileName" class="file-name-input"
-                            :placeholder="t('markdown.fileNamePlaceholder')" />
-                    </div>
+                <div class="control-group">
+                    <label class="control-label">{{ t('markdown.fileNameLabel') }}</label>
+                    <input type="text" v-model="fileName" class="file-name-input"
+                        :placeholder="t('markdown.fileNamePlaceholder')" />
+                </div>
 
-                    <div class="control-group">
+                <div class="split-pane">
+                    <div class="pane-left">
                         <label class="control-label">{{ t('markdown.markdownInputLabel') }}</label>
                         <textarea v-model="markdownInput" class="markdown-textarea"
-                            :placeholder="t('markdown.markdownPlaceholder')" rows="15"></textarea>
+                            :placeholder="t('markdown.markdownPlaceholder')" rows="18"></textarea>
                     </div>
+                    <div class="pane-right">
+                        <label class="control-label">{{ t('markdown.livePreview') }}</label>
+                        <div class="preview-area" v-html="htmlPreview"></div>
+                    </div>
+                </div>
 
-                    <div class="action-buttons">
-                        <button class="btn btn-primary" :disabled="!hasMarkdown || isProcessing" @click="convertToWord">
-                            <span v-if="isProcessing" class="mini-spinner"></span>
-                            {{ isProcessing ? t('markdown.converting') : t('markdown.convertToWord') }}
-                        </button>
-                        <button class="btn btn-secondary" @click="resetMarkdown" v-if="markdownInput">
-                            {{ t('common.reset') }}
-                        </button>
-                    </div>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" :disabled="!hasMarkdown || isProcessing" @click="convertToWord">
+                        <span v-if="isProcessing" class="mini-spinner"></span>
+                        {{ isProcessing ? t('markdown.converting') : t('markdown.convertToWord') }}
+                    </button>
+                    <button class="btn btn-secondary" @click="resetMarkdown" v-if="markdownInput">
+                        {{ t('common.reset') }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -792,6 +804,162 @@ function resetMarkdown() {
     margin-top: 2px;
 }
 
+/* Split pane: editor + live preview */
+.split-pane {
+    display: flex;
+    gap: 16px;
+    margin-top: 4px;
+}
+
+.pane-left,
+.pane-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.pane-left .markdown-textarea {
+    min-height: 400px;
+    flex: 1;
+}
+
+.preview-area {
+    flex: 1;
+    min-height: 400px;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #FAFAFA;
+    overflow-y: auto;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--text);
+}
+
+.preview-area:empty::before {
+    content: '';
+    display: block;
+}
+
+.preview-area :deep(h1) {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+
+.preview-area :deep(h2) {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 16px 0 8px;
+}
+
+.preview-area :deep(h3) {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 14px 0 6px;
+}
+
+.preview-area :deep(h4),
+.preview-area :deep(h5),
+.preview-area :deep(h6) {
+    font-weight: 700;
+    margin: 12px 0 6px;
+}
+
+.preview-area :deep(p) {
+    margin: 0 0 10px;
+}
+
+.preview-area :deep(ul),
+.preview-area :deep(ol) {
+    margin: 0 0 10px;
+    padding-left: 24px;
+}
+
+.preview-area :deep(li) {
+    margin-bottom: 4px;
+}
+
+.preview-area :deep(code) {
+    background: #E8E8E8;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875em;
+}
+
+.preview-area :deep(pre) {
+    background: #F5F5F5;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin: 0 0 10px;
+}
+
+.preview-area :deep(pre code) {
+    background: none;
+    padding: 0;
+}
+
+.preview-area :deep(blockquote) {
+    border-left: 3px solid var(--primary);
+    margin: 0 0 10px;
+    padding: 4px 16px;
+    color: var(--text-secondary);
+    background: var(--primary-light);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.preview-area :deep(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 10px;
+}
+
+.preview-area :deep(th),
+.preview-area :deep(td) {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+}
+
+.preview-area :deep(th) {
+    background: #F5F5F5;
+    font-weight: 600;
+}
+
+.preview-area :deep(hr) {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 12px 0;
+}
+
+.preview-area :deep(a) {
+    color: #0563C1;
+    text-decoration: none;
+}
+
+.preview-area :deep(a:hover) {
+    text-decoration: underline;
+}
+
+.preview-area :deep(img) {
+    max-width: 100%;
+    border-radius: var(--radius-sm);
+}
+
+.preview-area :deep(strong) {
+    font-weight: 700;
+}
+
+.preview-area :deep(em) {
+    font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .mode-tabs {
@@ -807,6 +975,18 @@ function resetMarkdown() {
     }
 
     .markdown-textarea {
+        min-height: 200px;
+    }
+
+    .split-pane {
+        flex-direction: column;
+    }
+
+    .pane-left .markdown-textarea {
+        min-height: 200px;
+    }
+
+    .preview-area {
         min-height: 200px;
     }
 

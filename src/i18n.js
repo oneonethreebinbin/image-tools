@@ -66,6 +66,11 @@ export const messages = {
         icon: "🎬",
         desc: "支持B站·小红书·抖音 · YouTube·Instagram·TikTok等 · 自动识别 · 提取视频地址",
       },
+      markdown: {
+        label: "文档转换",
+        icon: "📝",
+        desc: "Markdown 与 Word 互转 · 实时预览",
+      },
     },
     common: {
       uploadTitle: "拖拽图片到这里，或点击上传",
@@ -332,6 +337,7 @@ export const messages = {
       docNotSupported: "暂不支持旧版 .doc 格式，请使用 .docx 格式",
       wordParseError: "文件解析失败，请确保文件格式正确",
       fileReadError: "文件读取失败，请重试",
+      livePreview: "实时预览",
       tipsTitle: "使用提示",
       tips: [
         {
@@ -422,6 +428,11 @@ export const messages = {
         label: "Video Extractor",
         icon: "🎬",
         desc: "Bilibili·Xiaohongshu·Douyin · YouTube·Instagram·TikTok·Vimeo · Auto detect · Extract video",
+      },
+      markdown: {
+        label: "Doc Converter",
+        icon: "📝",
+        desc: "Markdown ↔ Word · Live preview",
       },
     },
     common: {
@@ -706,6 +717,7 @@ export const messages = {
       wordParseError:
         "File parsing failed. Please ensure the file format is correct",
       fileReadError: "File read failed. Please try again",
+      livePreview: "Live Preview",
       tipsTitle: "Tips",
       tips: [
         {
