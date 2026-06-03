@@ -1,5 +1,4 @@
 name: Sync to Hugging Face
-
 on:
   push:
     branches: [ main ]
@@ -8,19 +7,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Push to HuggingFace Space
+        uses: huggingface/huggingface-space-sync@main
         with:
-          fetch-depth: 0
-
-      - name: Setup Git config
-        run: |
-          git config --global user.name "${{ secrets.HF_username }}"
-          git config --global user.email "${{ secrets.HF_username }}@hf.co"
-
-      - name: Push to HuggingFace
-        env:
-          HF_REPO: https://${{ secrets.HF_username }}:${{ secrets.HF_token }}@huggingface.co/spaces/viewmax/watermark-remover
-        run: |
-          git remote add hf $HF_REPO || git remote set-url hf $HF_REPO
-          git push hf main --force
+          hf-token: ${{ secrets.HF_token }}
+          hf-username: ${{ secrets.HF_username }}
+          space-name: watermark-remover
