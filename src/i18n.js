@@ -84,7 +84,7 @@ export const messages = {
       remove: "去除水印",
       downloadResult: "下载处理后的图片",
       selectHint: "在图片上拖拽鼠标框选水印区域",
-      selectedHint: "已选中水印区域，点击“去除水印”开始处理",
+      selectedHint: "已选中水印区域，点击「去除水印」开始处理",
       done: "水印已去除，点击下载按钮保存结果",
       aiLoadingTitle: "AI 模型正在修复中...",
       aiLoadingHint: "LaMa 模型会分析图像内容并智能填充选区",
@@ -244,6 +244,11 @@ export const messages = {
           icon: "🎬",
           desc: "粘贴视频分享链接，提取视频地址、标题和封面信息。",
         },
+        markdown: {
+          label: "Markdown 文档转换",
+          icon: "📝",
+          desc: "Markdown 转 Word、Word 转 Markdown，在线文档格式转换，浏览器本地处理。",
+        },
       },
       featuresTitle: "为什么选择 ViewMax？",
       features: [
@@ -304,6 +309,52 @@ export const messages = {
       privacyTitle: "隐私说明",
       privacyText:
         "图片压缩和基础去水印在您的浏览器中本地处理。AI 去水印模式会按需调用修复服务。视频解析通过后端服务提取公开链接中的信息。我们不会存储您的图片或视频文件。",
+    },
+    markdown: {
+      modeMdToWord: "Markdown 转 Word",
+      modeWordToMd: "Word 转 Markdown",
+      fileNameLabel: "输出文件名",
+      fileNamePlaceholder: "请输入文件名",
+      markdownInputLabel: "输入 Markdown 内容",
+      markdownPlaceholder:
+        "在此输入或粘贴 Markdown 内容...\n\n# 示例标题\n\n这是一段普通文本，**支持加粗**和*斜体*。\n\n- 列表项 1\n- 列表项 2\n\n```javascript\nconsole.log('Hello World')\n```",
+      convertToWord: "转换为 Word",
+      converting: "正在转换...",
+      downloadMarkdown: "下载 Markdown",
+      downloadHtml: "下载 HTML",
+      uploadWordTitle: "拖拽 Word 文件到这里，或点击上传",
+      uploadWordHint: "支持 .docx 格式",
+      wordFileSize: "文件大小",
+      extractedResult: "提取结果",
+      emptyResult: "转换结果为空，请检查输入内容",
+      conversionError: "转换失败，请检查 Markdown 格式后重试",
+      invalidWordFile: "请选择 .docx 或 .doc 格式的文件",
+      docNotSupported: "暂不支持旧版 .doc 格式，请使用 .docx 格式",
+      wordParseError: "文件解析失败，请确保文件格式正确",
+      fileReadError: "文件读取失败，请重试",
+      tipsTitle: "使用提示",
+      tips: [
+        {
+          icon: "📝",
+          title: "支持标准 Markdown",
+          text: "支持标题、加粗、斜体、链接、代码块、列表、表格等标准 Markdown 语法。",
+        },
+        {
+          icon: "📄",
+          title: "Word 转 Markdown",
+          text: "上传 .docx 文件，自动提取内容并转换为 Markdown 格式，支持下载 .md 和 .html 文件。",
+        },
+        {
+          icon: "🔒",
+          title: "隐私安全",
+          text: "所有转换在浏览器本地完成，文件不会上传到服务器，保护您的隐私安全。",
+        },
+        {
+          icon: "💡",
+          title: "灵活输出",
+          text: "可自定义输出文件名，Markdown 转 Word 支持保留格式、标题层级和列表结构。",
+        },
+      ],
     },
   },
   en: {
@@ -392,7 +443,7 @@ export const messages = {
       downloadResult: "Download processed image",
       selectHint: "Drag on the image to select the watermark area",
       selectedHint:
-        "Watermark area selected. Click “Remove watermark” to process it",
+        "Watermark area selected. Click 「Remove watermark」 to process it",
       done: "Watermark removed. Download the result when ready",
       aiLoadingTitle: "AI model is repairing...",
       aiLoadingHint:
@@ -564,6 +615,11 @@ export const messages = {
           icon: "🎬",
           desc: "Paste a video share link to extract the video URL, title, and cover image.",
         },
+        markdown: {
+          label: "Markdown Converter",
+          icon: "📝",
+          desc: "Convert Markdown to Word and Word to Markdown. Online document conversion, processed in your browser.",
+        },
       },
       featuresTitle: "Why choose ViewMax?",
       features: [
@@ -624,6 +680,55 @@ export const messages = {
       privacyTitle: "Privacy notice",
       privacyText:
         "Image compression and basic watermark removal are processed locally in your browser. AI watermark repair calls a restoration service when selected. Video extraction fetches public link information through our backend. We do not store your images or video files.",
+    },
+    markdown: {
+      modeMdToWord: "Markdown to Word",
+      modeWordToMd: "Word to Markdown",
+      fileNameLabel: "Output file name",
+      fileNamePlaceholder: "Enter file name",
+      markdownInputLabel: "Enter Markdown content",
+      markdownPlaceholder:
+        "Type or paste Markdown content here...\n\n# Example Heading\n\nThis is a paragraph with **bold** and *italic* text.\n\n- List item 1\n- List item 2\n\n```javascript\nconsole.log('Hello World')\n```",
+      convertToWord: "Convert to Word",
+      converting: "Converting...",
+      downloadMarkdown: "Download Markdown",
+      downloadHtml: "Download HTML",
+      uploadWordTitle: "Drag a Word file here, or click to upload",
+      uploadWordHint: "Supports .docx format",
+      wordFileSize: "File size",
+      extractedResult: "Extracted result",
+      emptyResult: "Conversion result is empty. Please check the input content",
+      conversionError:
+        "Conversion failed. Please check the Markdown format and try again",
+      invalidWordFile: "Please select a .docx or .doc file",
+      docNotSupported:
+        "Old .doc format is not supported yet. Please use .docx format",
+      wordParseError:
+        "File parsing failed. Please ensure the file format is correct",
+      fileReadError: "File read failed. Please try again",
+      tipsTitle: "Tips",
+      tips: [
+        {
+          icon: "📝",
+          title: "Standard Markdown Support",
+          text: "Supports headings, bold, italic, links, code blocks, lists, tables and other standard Markdown syntax.",
+        },
+        {
+          icon: "📄",
+          title: "Word to Markdown",
+          text: "Upload a .docx file, automatically extract content and convert to Markdown format. Download as .md or .html.",
+        },
+        {
+          icon: "🔒",
+          title: "Privacy Safe",
+          text: "All conversions happen in your browser. Files are not uploaded to any server, protecting your privacy.",
+        },
+        {
+          icon: "💡",
+          title: "Flexible Output",
+          text: "Customize the output file name. Markdown to Word preserves formatting, heading levels and list structures.",
+        },
+      ],
     },
   },
 };

@@ -25,6 +25,10 @@ const tools = computed(() => [
     route: '/video-link-extractor',
     ...t('home.tools.video'),
   },
+  {
+    route: '/markdown-word-converter',
+    ...t('home.tools.markdown'),
+  },
 ])
 
 const features = computed(() => t('home.features'))
@@ -35,11 +39,7 @@ const faqs = computed(() => t('home.faq'))
   <div class="home">
     <!-- 顶部广告 -->
     <div class="container">
-      <AdSenseSlot
-        class-name="ad-banner"
-        :label="t('site.adBanner')"
-        :slot="adSlots.banner"
-      />
+      <AdSenseSlot class-name="ad-banner" :label="t('site.adBanner')" :slot="adSlots.banner" />
     </div>
 
     <!-- Hero -->
@@ -56,12 +56,7 @@ const faqs = computed(() => t('home.faq'))
       <div class="container">
         <h2 class="section-title">{{ t('home.toolsTitle') }}</h2>
         <div class="tools-grid">
-          <router-link
-            v-for="tool in tools"
-            :key="tool.route"
-            :to="tool.route"
-            class="tool-card"
-          >
+          <router-link v-for="tool in tools" :key="tool.route" :to="tool.route" class="tool-card">
             <span class="tool-icon">{{ tool.icon }}</span>
             <h3 class="tool-name">{{ tool.label }}</h3>
             <p class="tool-desc">{{ tool.desc }}</p>
@@ -73,11 +68,7 @@ const faqs = computed(() => t('home.faq'))
 
     <!-- 内容广告 -->
     <div class="container">
-      <AdSenseSlot
-        class-name="ad-inline"
-        :label="t('site.adInline')"
-        :slot="adSlots.inline"
-      />
+      <AdSenseSlot class-name="ad-inline" :label="t('site.adInline')" :slot="adSlots.inline" />
     </div>
 
     <!-- 特色 -->
