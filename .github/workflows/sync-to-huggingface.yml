@@ -23,4 +23,4 @@ jobs:
           HF_REPO: https://${{ secrets.HF_username }}:${{ secrets.HF_token }}@huggingface.co/spaces/viewmax/watermark-remover
         run: |
           git remote add hf $HF_REPO || git remote set-url hf $HF_REPO
-          git push hf main --force-with-lease
+          git push hf main --force
