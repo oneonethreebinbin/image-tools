@@ -42,6 +42,16 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+async def root():
+    return {
+        "status": "ok",
+        "service": "AI Watermark Remover",
+        "model": "LaMa (Large Mask Inpainting)",
+        "docs": "/docs",
+    }
+
+
 @app.get("/api/health")
 async def health_check():
     return {
