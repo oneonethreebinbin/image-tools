@@ -1,5 +1,5 @@
 <script setup>
-import { inject, ref, computed } from 'vue'
+import { inject, ref, computed, onBeforeUnmount } from 'vue'
 import { I18N_KEY } from '../i18n'
 import AdSenseSlot from './AdSenseSlot.vue'
 import {
@@ -16,6 +16,31 @@ const isProcessing = ref(false)
 const error = ref('')
 const fileName = ref('converted')
 const conversionMode = ref('md-to-word') // 'md-to-word' or 'word-to-md'
+
+// Editor refs for sync scroll
+const textareaRef = ref(null)
+const previewRef = ref(null)
+let syncScrollEnabled = true
+
+function onEditorScroll() {
+    if (!syncScrollEnabled || !textareaRef.value || !previewRef.value) return
+    const el = textareaRef.value
+    const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1)
+    const previewEl = previewRef.value
+    previewEl.scrollTop = ratio * (previewEl.scrollHeight - previewEl.clientHeight || 1)
+}
+
+function onPreviewScroll() {
+    if (!syncScrollEnabled || !textareaRef.value || !previewRef.value) return
+    const el = previewRef.value
+    const ratio = el.scrollTop / (el.scrollHeight - el.clientHeight || 1)
+    const textareaEl = textareaRef.value
+    textareaEl.scrollTop = ratio * (textareaEl.scrollHeight - textareaEl.clientHeight || 1)
+}
+
+onBeforeUnmount(() => {
+    syncScrollEnabled = false
+})
 
 // Word to Markdown
 const wordFile = ref(null)
@@ -437,12 +462,13 @@ function resetMarkdown() {
                 <div class="split-pane">
                     <div class="pane-left">
                         <label class="control-label">{{ t('markdown.markdownInputLabel') }}</label>
-                        <textarea v-model="markdownInput" class="markdown-textarea"
-                            :placeholder="t('markdown.markdownPlaceholder')" rows="18"></textarea>
+                        <textarea ref="textareaRef" v-model="markdownInput" class="markdown-textarea"
+                            :placeholder="t('markdown.markdownPlaceholder')" rows="18"
+                            @scroll="onEditorScroll"></textarea>
                     </div>
                     <div class="pane-right">
                         <label class="control-label">{{ t('markdown.livePreview') }}</label>
-                        <div class="preview-area" v-html="htmlPreview"></div>
+                        <div ref="previewRef" class="preview-area" v-html="htmlPreview" @scroll="onPreviewScroll"></div>
                     </div>
                 </div>
 
@@ -824,13 +850,16 @@ function resetMarkdown() {
 }
 
 .pane-left .markdown-textarea {
-    min-height: 400px;
+    min-height: 200px;
+    max-height: 420px;
     flex: 1;
+    overflow-y: auto;
 }
 
 .preview-area {
     flex: 1;
-    min-height: 400px;
+    min-height: 200px;
+    max-height: 420px;
     padding: 14px 16px;
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
@@ -965,14 +994,6 @@ function resetMarkdown() {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .mode-tabs {
-        flex-direction: column;
-    }
-
-    .mode-tab {
-        padding: 12px 16px;
-    }
-
     .editor-body {
         padding: 16px;
     }
@@ -986,11 +1007,13 @@ function resetMarkdown() {
     }
 
     .pane-left .markdown-textarea {
-        min-height: 200px;
+        min-height: 150px;
+        max-height: 300px;
     }
 
     .preview-area {
-        min-height: 200px;
+        min-height: 150px;
+        max-height: 300px;
     }
 
     .action-buttons {
