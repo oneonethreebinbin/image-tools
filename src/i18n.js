@@ -66,6 +66,11 @@ export const messages = {
         icon: "🎬",
         desc: "支持B站·小红书·抖音 · YouTube·Instagram·TikTok等 · 自动识别 · 提取视频地址",
       },
+      markdown: {
+        label: "Markdown 转换",
+        icon: "📝",
+        desc: "Markdown 转 Word · Word 转 Markdown · 在线文档格式转换",
+      },
     },
     common: {
       uploadTitle: "拖拽图片到这里，或点击上传",
@@ -422,6 +427,11 @@ export const messages = {
         label: "Video Extractor",
         icon: "🎬",
         desc: "Bilibili·Xiaohongshu·Douyin · YouTube·Instagram·TikTok·Vimeo · Auto detect · Extract video",
+      },
+      markdown: {
+        label: "Markdown Converter",
+        icon: "📝",
+        desc: "Markdown to Word · Word to Markdown · Online document conversion",
       },
     },
     common: {

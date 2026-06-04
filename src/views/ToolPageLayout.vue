@@ -12,9 +12,12 @@ const pageMeta = computed(() => {
     '/image-watermark-remover': t('tabs.watermark'),
     '/image-compressor': t('tabs.compress'),
     '/video-link-extractor': t('tabs.video'),
+    '/markdown-word-converter': t('tabs.markdown'),
   }
   return map[route.path] || { icon: '', label: '', desc: '' }
 })
+
+const showSidebar = computed(() => route.path !== '/markdown-word-converter')
 
 const features = computed(() => t('site.features'))
 
@@ -37,12 +40,8 @@ const adSlots = {
           <router-view />
         </div>
 
-        <aside class="sidebar">
-          <AdSenseSlot
-            class-name="ad-sidebar"
-            :label="t('site.adSidebar')"
-            :slot="adSlots.sidebar"
-          />
+        <aside v-if="showSidebar" class="sidebar">
+          <AdSenseSlot class-name="ad-sidebar" :label="t('site.adSidebar')" :slot="adSlots.sidebar" />
           <div class="card feature-card">
             <h2 class="feature-card-title">{{ t('site.whyChoose') }}</h2>
             <ul class="feature-list">
@@ -58,11 +57,7 @@ const adSlots = {
         </aside>
       </div>
 
-      <AdSenseSlot
-        class-name="ad-inline"
-        :label="t('site.adInline')"
-        :slot="adSlots.inline"
-      />
+      <AdSenseSlot class-name="ad-inline" :label="t('site.adInline')" :slot="adSlots.inline" />
     </div>
   </div>
 </template>

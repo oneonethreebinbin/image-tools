@@ -14,6 +14,7 @@ const navLinks = computed(() => [
   { path: '/image-watermark-remover', ...i18n.t('tabs.watermark') },
   { path: '/image-compressor', ...i18n.t('tabs.compress') },
   { path: '/video-link-extractor', ...i18n.t('tabs.video') },
+  { path: '/markdown-word-converter', ...i18n.t('tabs.markdown') },
 ])
 
 function isActive(path) {
@@ -38,33 +39,20 @@ onMounted(loadAdSense)
         </router-link>
 
         <nav class="nav" :aria-label="i18n.t('site.tagline')">
-          <router-link
-            v-for="link in navLinks"
-            :key="link.id"
-            :to="link.path"
-            class="nav-tab"
-            :class="{ active: isActive(link.path) }"
-          >
+          <router-link v-for="link in navLinks" :key="link.id" :to="link.path" class="nav-tab"
+            :class="{ active: isActive(link.path) }">
             <span class="nav-tab-icon">{{ link.icon }}</span>
             <span class="nav-tab-label">{{ link.label }}</span>
           </router-link>
         </nav>
 
         <div class="language-switcher" :aria-label="i18n.t('site.language')">
-          <button
-            type="button"
-            class="language-btn"
-            :class="{ active: i18n.language.value === 'zh' }"
-            @click="i18n.setLanguage('zh')"
-          >
+          <button type="button" class="language-btn" :class="{ active: i18n.language.value === 'zh' }"
+            @click="i18n.setLanguage('zh')">
             {{ i18n.t('site.chinese') }}
           </button>
-          <button
-            type="button"
-            class="language-btn"
-            :class="{ active: i18n.language.value === 'en' }"
-            @click="i18n.setLanguage('en')"
-          >
+          <button type="button" class="language-btn" :class="{ active: i18n.language.value === 'en' }"
+            @click="i18n.setLanguage('en')">
             {{ i18n.t('site.english') }}
           </button>
         </div>
