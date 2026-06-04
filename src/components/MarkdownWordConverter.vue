@@ -1,13 +1,14 @@
 <script setup>
-import { inject, ref, computed, onBeforeUnmount } from 'vue'
+import { inject, ref, computed, onBeforeUnmount, nextTick, watch } from 'vue'
 import { I18N_KEY } from '../i18n'
 import AdSenseSlot from './AdSenseSlot.vue'
 import {
     Document, Packer, Paragraph, TextRun, HeadingLevel,
-    AlignmentType, TableCell, TableRow, Table, WidthType
+    AlignmentType, TableCell, TableRow, Table, WidthType, ImageRun
 } from 'docx'
 import { saveAs } from 'file-saver'
 import { marked } from 'marked'
+import mermaid from 'mermaid'
 
 const { t } = inject(I18N_KEY)
 
@@ -53,6 +54,36 @@ const wordFileInput = ref(null)
 
 const toolAdSlot = import.meta.env.VITE_ADSENSE_SLOT_TOOL || import.meta.env.VITE_ADSENSE_SLOT_INLINE || ''
 
+// Initialize mermaid
+let mermaidIdCounter = 0
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'default',
+    securityLevel: 'loose',
+})
+
+// Track rendered mermaid elements
+const renderedMermaidIds = new Set()
+
+async function renderMermaidElements() {
+    await nextTick()
+    const containers = document.querySelectorAll('.mermaid-container[data-processed="false"]')
+    for (const container of containers) {
+        const code = container.querySelector('code')
+        if (!code) continue
+        const id = `mermaid-${++mermaidIdCounter}`
+        try {
+            const { svg } = await mermaid.render(id, code.textContent)
+            container.innerHTML = svg
+            container.setAttribute('data-processed', 'true')
+        } catch (e) {
+            console.error('Mermaid render error:', e)
+            container.innerHTML = `<pre style="color:red;">Mermaid Error: ${e.message}</pre>`
+            container.setAttribute('data-processed', 'true')
+        }
+    }
+}
+
 const hasMarkdown = computed(() => markdownInput.value.trim().length > 0)
 const htmlPreview = computed(() => {
     if (!markdownInput.value.trim()) return ''
@@ -63,10 +94,27 @@ const htmlPreview = computed(() => {
     }
 })
 
-// Configure marked for better parsing
+// Watch for HTML preview changes to render Mermaid diagrams
+watch(htmlPreview, async () => {
+    await nextTick()
+    await renderMermaidElements()
+})
+
+// Configure marked for better parsing with mermaid support
+const renderer = new marked.Renderer()
+const originalCodeRenderer = renderer.code.bind(renderer)
+
+renderer.code = function ({ text, lang }) {
+    if (lang === 'mermaid') {
+        return `<div class="mermaid-container" data-processed="false"><code>${text}</code></div>`
+    }
+    return originalCodeRenderer({ text, lang })
+}
+
 marked.setOptions({
     gfm: true,
     breaks: true,
+    renderer: renderer,
 })
 
 // Parse markdown heading level
@@ -113,7 +161,7 @@ function createTextRuns(tokens) {
 }
 
 // Parse tokens into docx paragraphs and elements
-function tokensToDocxElements(tokens, level = 0) {
+async function tokensToDocxElements(tokens, level = 0) {
     const elements = []
 
     for (const token of tokens) {
@@ -152,37 +200,67 @@ function tokensToDocxElements(tokens, level = 0) {
                 // Handle nested lists inside item tokens
                 if (item.tokens) {
                     const nestedLists = item.tokens.filter(t => t.type === 'list')
-                    nestedLists.forEach(nested => {
-                        const nestedElements = tokensToDocxElements([nested], level + 1)
+                    for (const nested of nestedLists) {
+                        const nestedElements = await tokensToDocxElements([nested], level + 1)
                         elements.push(...nestedElements)
-                    })
+                    }
                 }
             })
         } else if (token.type === 'code') {
-            // Code block with background
-            const lang = token.lang ? ` (${token.lang})` : ''
-            if (lang) {
-                elements.push(
-                    new Paragraph({
-                        children: [new TextRun({ text: lang.trim(), font: 'Courier New', italics: true, color: '888888', size: 18 })],
-                        spacing: { before: 120, after: 40 },
-                    })
-                )
+            if (token.lang === 'mermaid') {
+                // Render mermaid as PNG image in Word
+                try {
+                    const pngBlob = await renderMermaidToPng(token.text)
+                    const arrayBuffer = await pngBlob.arrayBuffer()
+                    const uint8Array = new Uint8Array(arrayBuffer)
+                    elements.push(
+                        new Paragraph({
+                            children: [
+                                new ImageRun({
+                                    data: uint8Array,
+                                    transformation: { width: 500, height: Math.round(500 * 0.6) },
+                                    type: 'png',
+                                })
+                            ],
+                            alignment: AlignmentType.CENTER,
+                            spacing: { before: 200, after: 200 },
+                        })
+                    )
+                } catch (e) {
+                    console.error('Mermaid export error:', e)
+                    elements.push(
+                        new Paragraph({
+                            children: [new TextRun({ text: '[Mermaid Diagram]', italics: true, color: '888888' })],
+                            spacing: { before: 80, after: 40 },
+                        })
+                    )
+                }
+            } else {
+                // Regular code block with background
+                const lang = token.lang ? ` (${token.lang})` : ''
+                if (lang) {
+                    elements.push(
+                        new Paragraph({
+                            children: [new TextRun({ text: lang.trim(), font: 'Courier New', italics: true, color: '888888', size: 18 })],
+                            spacing: { before: 120, after: 40 },
+                        })
+                    )
+                }
+                const codeLines = token.text.split('\n')
+                codeLines.forEach((line) => {
+                    elements.push(
+                        new Paragraph({
+                            children: [new TextRun({ text: line || ' ', font: 'Courier New', size: 18 })],
+                            shading: { fill: 'F5F5F5' },
+                            spacing: { after: 0 },
+                        })
+                    )
+                })
+                elements.push(new Paragraph({ children: [], spacing: { after: 80 } }))
             }
-            const codeLines = token.text.split('\n')
-            codeLines.forEach((line, i) => {
-                elements.push(
-                    new Paragraph({
-                        children: [new TextRun({ text: line || ' ', font: 'Courier New', size: 18 })],
-                        shading: { fill: 'F5F5F5' },
-                        spacing: { after: 0 },
-                    })
-                )
-            })
-            elements.push(new Paragraph({ children: [], spacing: { after: 80 } }))
         } else if (token.type === 'blockquote') {
             if (token.tokens) {
-                const quoteElements = tokensToDocxElements(token.tokens, level)
+                const quoteElements = await tokensToDocxElements(token.tokens, level)
                 quoteElements.forEach(el => {
                     if (el instanceof Paragraph) {
                         // Add indent and simulate left border via shading
@@ -270,6 +348,48 @@ function flattenTokens(tokens) {
     return result
 }
 
+// Render mermaid code to PNG image
+async function renderMermaidToPng(code) {
+    const id = `mermaid-export-${++mermaidIdCounter}`
+    const { svg } = await mermaid.render(id, code)
+    const parser = new DOMParser()
+    const svgDoc = parser.parseFromString(svg, 'image/svg+xml')
+    const svgEl = svgDoc.querySelector('svg')
+    const vb = svgEl?.getAttribute('viewBox')
+    let width = 800, height = 600
+    if (vb) {
+        const parts = vb.split(/\s+/).map(Number)
+        width = parts[2] || 800
+        height = parts[3] || 600
+    } else {
+        width = parseInt(svgEl?.getAttribute('width') || '800', 10)
+        height = parseInt(svgEl?.getAttribute('height') || '600', 10)
+    }
+    const canvas = document.createElement('canvas')
+    const scale = 2
+    canvas.width = width * scale
+    canvas.height = height * scale
+    const ctx = canvas.getContext('2d')
+    ctx.scale(scale, scale)
+    const img = new Image()
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(svgBlob)
+    return new Promise((resolve, reject) => {
+        img.onload = () => {
+            ctx.fillStyle = 'white'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+            ctx.drawImage(img, 0, 0, width, height)
+            URL.revokeObjectURL(url)
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob)
+                else reject(new Error('Failed to create PNG blob'))
+            }, 'image/png')
+        }
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load SVG')) }
+        img.src = url
+    })
+}
+
 // Convert Markdown to Word
 async function convertToWord() {
     if (!markdownInput.value.trim()) return
@@ -279,7 +399,7 @@ async function convertToWord() {
 
     try {
         const tokens = marked.lexer(markdownInput.value)
-        const elements = tokensToDocxElements(tokens)
+        const elements = await tokensToDocxElements(tokens)
 
         if (elements.length === 0) {
             error.value = t('markdown.emptyResult')
