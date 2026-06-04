@@ -6,6 +6,11 @@ import ImageCompressor from "../components/ImageCompressor.vue";
 import VideoExtractor from "../components/VideoExtractor.vue";
 import MarkdownWordConverter from "../components/MarkdownWordConverter.vue";
 import MarkdownDocLayout from "../views/MarkdownDocLayout.vue";
+import ToolboxPage from "../views/ToolboxPage.vue";
+import ImageCropper from "../components/ImageCropper.vue";
+import ImageFormatConverter from "../components/ImageFormatConverter.vue";
+import PdfToWord from "../components/PdfToWord.vue";
+import PdfMerger from "../components/PdfMerger.vue";
 import { SEO_META } from "./seo";
 
 const routes = [
@@ -55,6 +60,55 @@ const routes = [
         path: "",
         name: "MarkdownWordConverter",
         component: MarkdownWordConverter,
+      },
+    ],
+  },
+  {
+    path: "/toolbox",
+    name: "Toolbox",
+    component: ToolboxPage,
+  },
+  {
+    path: "/toolbox/image-cropper",
+    component: ToolPageLayout,
+    children: [
+      {
+        path: "",
+        name: "ImageCropper",
+        component: ImageCropper,
+      },
+    ],
+  },
+  {
+    path: "/toolbox/image-format-converter",
+    component: ToolPageLayout,
+    children: [
+      {
+        path: "",
+        name: "ImageFormatConverter",
+        component: ImageFormatConverter,
+      },
+    ],
+  },
+  {
+    path: "/toolbox/pdf-to-word",
+    component: ToolPageLayout,
+    children: [
+      {
+        path: "",
+        name: "PdfToWord",
+        component: PdfToWord,
+      },
+    ],
+  },
+  {
+    path: "/toolbox/pdf-merger",
+    component: ToolPageLayout,
+    children: [
+      {
+        path: "",
+        name: "PdfMerger",
+        component: PdfMerger,
       },
     ],
   },

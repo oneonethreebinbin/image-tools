@@ -827,7 +827,7 @@ function resetMarkdown() {
 
 .markdown-textarea {
     width: 100%;
-    min-height: 300px;
+    min-height: 450px;
     padding: 14px 16px;
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1020,16 +1020,16 @@ function resetMarkdown() {
 }
 
 .pane-left .markdown-textarea {
-    min-height: 200px;
-    max-height: 420px;
+    min-height: 300px;
+    max-height: 600px;
     flex: 1;
     overflow-y: auto;
 }
 
 .preview-area {
     flex: 1;
-    min-height: 200px;
-    max-height: 420px;
+    min-height: 300px;
+    max-height: 600px;
     padding: 14px 16px;
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
@@ -1177,13 +1177,13 @@ function resetMarkdown() {
     }
 
     .pane-left .markdown-textarea {
-        min-height: 150px;
-        max-height: 300px;
+        min-height: 250px;
+        max-height: 500px;
     }
 
     .preview-area {
-        min-height: 150px;
-        max-height: 300px;
+        min-height: 250px;
+        max-height: 500px;
     }
 
     .action-buttons {

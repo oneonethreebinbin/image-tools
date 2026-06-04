@@ -29,6 +29,10 @@ const tools = computed(() => [
     route: '/markdown-word-converter',
     ...t('home.tools.markdown'),
   },
+  {
+    route: '/toolbox',
+    ...t('home.tools.toolbox'),
+  },
 ])
 
 const features = computed(() => t('home.features'))

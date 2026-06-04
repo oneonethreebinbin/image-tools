@@ -15,6 +15,7 @@ const navLinks = computed(() => [
   { path: '/image-compressor', ...i18n.t('tabs.compress') },
   { path: '/video-link-extractor', ...i18n.t('tabs.video') },
   { path: '/markdown-word-converter', ...i18n.t('tabs.markdown') },
+  { path: '/toolbox', ...i18n.t('tabs.toolbox') },
 ])
 
 function isActive(path) {
