@@ -188,7 +188,7 @@ function goBack() {
 
 <template>
     <div class="pdf-tool-page">
-        <button class="back-link" @click="goBack">← {{ t('common.backToToolbox') }}</button>
+        <button class="back-link" @click="goBack">{{ t('common.backToToolbox') }}</button>
 
         <div class="tool-header">
             <h1 class="tool-title">📄 {{ t('pdfToWord.title') }}</h1>
