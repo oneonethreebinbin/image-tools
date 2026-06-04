@@ -183,7 +183,7 @@ async function tokensToDocxElements(tokens, level = 0) {
                 })
             )
         } else if (token.type === 'list') {
-            token.items.forEach((item, index) => {
+            for (const [index, item] of token.items.entries()) {
                 const prefix = token.ordered ? `${index + 1}. ` : '• '
                 // Flatten item tokens to handle paragraphs/lists inside list items
                 const flatItemTokens = flattenTokens(item.tokens)
@@ -205,7 +205,7 @@ async function tokensToDocxElements(tokens, level = 0) {
                         elements.push(...nestedElements)
                     }
                 }
-            })
+            }
         } else if (token.type === 'code') {
             if (token.lang === 'mermaid') {
                 // Render mermaid as PNG image in Word
