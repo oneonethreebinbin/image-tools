@@ -654,6 +654,9 @@ function resetMarkdown() {
 .action-buttons {
     display: flex;
     gap: 12px;
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
 }
 
 .action-buttons .btn {
