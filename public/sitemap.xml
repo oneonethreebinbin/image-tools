@@ -1,16 +1,105 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <!-- 首页 -->
   <url>
-    <loc>https://www.viewmax.top/?lang=zh</loc>
-    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/?lang=zh" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/?lang=en" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.viewmax.top/?lang=en" />
+    <loc>https://www.viewmax.top/</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/?lang=en"/>
   </url>
+
+  <!-- 图片去水印 -->
   <url>
-    <loc>https://www.viewmax.top/?lang=en</loc>
-    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/?lang=zh" />
-    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/?lang=en" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.viewmax.top/?lang=en" />
+    <loc>https://www.viewmax.top/image-watermark-remover</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/image-watermark-remover?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/image-watermark-remover?lang=en"/>
   </url>
+
+  <!-- 图片压缩 -->
+  <url>
+    <loc>https://www.viewmax.top/image-compressor</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/image-compressor?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/image-compressor?lang=en"/>
+  </url>
+
+  <!-- 视频链接解析 -->
+  <url>
+    <loc>https://www.viewmax.top/video-link-extractor</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/video-link-extractor?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/video-link-extractor?lang=en"/>
+  </url>
+
+  <!-- Markdown 转 Word -->
+  <url>
+    <loc>https://www.viewmax.top/markdown-word-converter</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/markdown-word-converter?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/markdown-word-converter?lang=en"/>
+  </url>
+
+  <!-- 工具箱 -->
+  <url>
+    <loc>https://www.viewmax.top/toolbox</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/toolbox?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/toolbox?lang=en"/>
+  </url>
+
+  <!-- 图片裁剪 -->
+  <url>
+    <loc>https://www.viewmax.top/toolbox/image-cropper</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/toolbox/image-cropper?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/toolbox/image-cropper?lang=en"/>
+  </url>
+
+  <!-- 图片格式转换 -->
+  <url>
+    <loc>https://www.viewmax.top/toolbox/image-format-converter</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/toolbox/image-format-converter?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/toolbox/image-format-converter?lang=en"/>
+  </url>
+
+  <!-- PDF 转 Word -->
+  <url>
+    <loc>https://www.viewmax.top/toolbox/pdf-to-word</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/toolbox/pdf-to-word?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/toolbox/pdf-to-word?lang=en"/>
+  </url>
+
+  <!-- PDF 合并 -->
+  <url>
+    <loc>https://www.viewmax.top/toolbox/pdf-merger</loc>
+    <lastmod>2026-06-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.viewmax.top/toolbox/pdf-merger?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.viewmax.top/toolbox/pdf-merger?lang=en"/>
+  </url>
+
 </urlset>

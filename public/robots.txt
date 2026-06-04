@@ -1,4 +1,33 @@
+# robots.txt for ViewMax - 免费在线图片与视频工具箱
+# https://www.viewmax.top
+
+# 允许所有搜索引擎爬取
 User-agent: *
 Allow: /
 
+# 百度蜘蛛 (Baiduspider)
+User-agent: Baiduspider
+Allow: /
+Crawl-delay: 1
+
+# 谷歌蜘蛛 (Googlebot)
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# 必应蜘蛛 (Bingbot)
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# 禁止爬取静态资源和非页面文件
+User-agent: *
+Disallow: /assets/
+Disallow: /*.js$
+Disallow: /*.css$
+Disallow: /*.png$
+Disallow: /*.jpg$
+Disallow: /*.svg$
+
+# Sitemap 位置
 Sitemap: https://www.viewmax.top/sitemap.xml

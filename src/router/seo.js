@@ -5,11 +5,12 @@ export const SEO_META = {
       en: "ViewMax - Free Online Image & Video Toolbox",
     },
     description: {
-      zh: "免费在线图片与视频工具箱。AI 图片去水印、图片压缩、视频链接解析，支持中文和英文界面，无需安装软件。",
-      en: "Free online image and video toolbox. AI watermark removal, image compression, and video link extraction with Chinese and English interfaces. No install required.",
+      zh: "免费在线图片与视频工具箱。AI 图片去水印、图片压缩、视频链接解析、PDF转换，支持中文和英文界面，无需安装软件。",
+      en: "Free online image and video toolbox. AI watermark removal, image compression, video link extraction, PDF conversion with Chinese and English interfaces. No install required.",
     },
     keywords:
-      "图片去水印,图片压缩,视频解析,在线图片工具,在线视频工具,image watermark remover,image compressor,video extractor,在线工具箱",
+      "图片去水印,图片压缩,视频解析,PDF转换,在线图片工具,在线视频工具,image watermark remover,image compressor,video extractor,pdf converter,在线工具箱",
+    url: "/",
   },
   WatermarkRemover: {
     title: {
@@ -65,11 +66,12 @@ export const SEO_META = {
       en: "Toolbox - More Useful Tools | ViewMax",
     },
     description: {
-      zh: "ViewMax 工具箱，提供图片裁剪、图片格式转换等更多实用的在线图片处理工具。",
-      en: "ViewMax Toolbox - More useful online image tools including image cropper and format converter.",
+      zh: "ViewMax 工具箱，提供图片裁剪、图片格式转换、PDF转Word、PDF合并等更多实用的在线处理工具。",
+      en: "ViewMax Toolbox - More useful online tools including image cropper, format converter, PDF to Word and PDF merger.",
     },
     keywords:
-      "工具箱,图片裁剪,图片格式转换,在线工具,toolbox,image cropper,image format converter,online tools",
+      "工具箱,图片裁剪,图片格式转换,PDF转Word,PDF合并,在线工具,toolbox,image cropper,image format converter,pdf to word,pdf merger,online tools",
+    url: "/toolbox",
   },
   ImageCropper: {
     title: {

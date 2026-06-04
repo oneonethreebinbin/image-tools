@@ -129,13 +129,31 @@ const router = createRouter({
 router.afterEach((to) => {
   const lang = document.documentElement.lang === "zh-CN" ? "zh" : "en";
   const meta = SEO_META[to.name] || SEO_META.Home;
+  const url = `https://www.viewmax.top${to.path}`;
+
   document.title = meta.title[lang];
 
   setMetaTag("description", meta.description[lang]);
   setMetaTag("keywords", meta.keywords);
+  setMetaTag("author", "ViewMax");
+  setMetaTag("robots", "index, follow");
+  setMetaTag("googlebot", "index, follow");
+  setMetaTag("baiduspider", "index, follow");
+
   setPropertyMeta("og:title", meta.title[lang]);
   setPropertyMeta("og:description", meta.description[lang]);
-  setPropertyMeta("og:url", `https://www.viewmax.top${to.path}`);
+  setPropertyMeta("og:url", url);
+  setPropertyMeta("og:type", "website");
+  setPropertyMeta("og:site_name", "ViewMax");
+  setPropertyMeta("og:locale", lang === "zh" ? "zh_CN" : "en_US");
+
+  setPropertyMeta("twitter:card", "summary_large_image");
+  setPropertyMeta("twitter:title", meta.title[lang]);
+  setPropertyMeta("twitter:description", meta.description[lang]);
+
+  setLinkTag("canonical", url);
+
+  injectJsonLd(to, meta, lang);
 });
 
 function setMetaTag(name, content) {
@@ -156,6 +174,93 @@ function setPropertyMeta(property, content) {
     document.head.appendChild(tag);
   }
   tag.setAttribute("content", content);
+}
+
+function setLinkTag(rel, href) {
+  let tag = document.querySelector(`link[rel="${rel}"]`);
+  if (!tag) {
+    tag = document.createElement("link");
+    tag.setAttribute("rel", rel);
+    document.head.appendChild(tag);
+  }
+  tag.setAttribute("href", href);
+}
+
+function injectJsonLd(to, meta, lang) {
+  const oldScript = document.getElementById("seo-jsonld");
+  if (oldScript) oldScript.remove();
+
+  const url = `https://www.viewmax.top${to.path}`;
+  const toolNames = {
+    WatermarkRemover: "image-watermark-remover",
+    ImageCompressor: "image-compressor",
+    VideoExtractor: "video-link-extractor",
+    MarkdownWordConverter: "markdown-word-converter",
+    Toolbox: "toolbox",
+    ImageCropper: "toolbox/image-cropper",
+    ImageFormatConverter: "toolbox/image-format-converter",
+    PdfToWord: "toolbox/pdf-to-word",
+    PdfMerger: "toolbox/pdf-merger",
+  };
+
+  let jsonLd;
+
+  if (to.name === "Home") {
+    jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: meta.title[lang],
+      description: meta.description[lang],
+      url: url,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${url}?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+      inLanguage: lang === "zh" ? "zh-CN" : "en-US",
+    };
+  } else if (toolNames[to.name]) {
+    jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: meta.title[lang],
+      description: meta.description[lang],
+      url: url,
+      applicationCategory: "MultimediaApplication",
+      operatingSystem: "Web Browser",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      author: {
+        "@type": "Organization",
+        name: "ViewMax",
+        url: "https://www.viewmax.top",
+      },
+      inLanguage: lang === "zh" ? "zh-CN" : "en-US",
+    };
+  } else {
+    jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: meta.title[lang],
+      description: meta.description[lang],
+      url: url,
+      isPartOf: {
+        "@type": "WebSite",
+        name: "ViewMax",
+        url: "https://www.viewmax.top",
+      },
+      inLanguage: lang === "zh" ? "zh-CN" : "en-US",
+    };
+  }
+
+  const script = document.createElement("script");
+  script.id = "seo-jsonld";
+  script.type = "application/ld+json";
+  script.textContent = JSON.stringify(jsonLd);
+  document.head.appendChild(script);
 }
 
 export default router;
