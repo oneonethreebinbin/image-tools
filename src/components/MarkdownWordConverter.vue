@@ -112,13 +112,13 @@ function createTextRuns(tokens) {
     })
 }
 
-// Parse tokens into docx paragraphs
-function tokensToDocxParagraphs(tokens, level = 0) {
-    const paragraphs = []
+// Parse tokens into docx paragraphs and elements
+function tokensToDocxElements(tokens, level = 0) {
+    const elements = []
 
     for (const token of tokens) {
         if (token.type === 'heading') {
-            paragraphs.push(
+            elements.push(
                 new Paragraph({
                     children: createTextRuns(token.tokens),
                     heading: getHeadingLevel(token),
@@ -126,57 +126,84 @@ function tokensToDocxParagraphs(tokens, level = 0) {
                 })
             )
         } else if (token.type === 'paragraph') {
-            paragraphs.push(
+            // Flatten nested tokens (e.g. list inside paragraph)
+            const flatTokens = flattenTokens(token.tokens)
+            elements.push(
                 new Paragraph({
-                    children: createTextRuns(token.tokens),
+                    children: createTextRuns(flatTokens),
                     spacing: { after: 120 },
                 })
             )
         } else if (token.type === 'list') {
             token.items.forEach((item, index) => {
                 const prefix = token.ordered ? `${index + 1}. ` : '• '
-                paragraphs.push(
+                // Flatten item tokens to handle paragraphs/lists inside list items
+                const flatItemTokens = flattenTokens(item.tokens)
+                elements.push(
                     new Paragraph({
                         children: [
                             new TextRun({ text: prefix, bold: true, font: 'Arial' }),
-                            ...createTextRuns(item.tokens),
+                            ...createTextRuns(flatItemTokens),
                         ],
                         indent: { left: 720 * (level + 1) },
                         spacing: { after: 60 },
                     })
                 )
-                // Handle nested lists
+                // Handle nested lists inside item tokens
                 if (item.tokens) {
-                    const nestedTokens = item.tokens.filter(t => t.type === 'list')
-                    nestedTokens.forEach(nested => {
-                        const nestedParagraphs = tokensToDocxParagraphs([nested], level + 1)
-                        paragraphs.push(...nestedParagraphs)
+                    const nestedLists = item.tokens.filter(t => t.type === 'list')
+                    nestedLists.forEach(nested => {
+                        const nestedElements = tokensToDocxElements([nested], level + 1)
+                        elements.push(...nestedElements)
                     })
                 }
             })
         } else if (token.type === 'code') {
-            // Code block
-            const codeLines = token.text.split('\n')
-            codeLines.forEach(line => {
-                paragraphs.push(
+            // Code block with background
+            const lang = token.lang ? ` (${token.lang})` : ''
+            if (lang) {
+                elements.push(
                     new Paragraph({
-                        children: [new TextRun({ text: line, font: 'Courier New' })],
+                        children: [new TextRun({ text: lang.trim(), font: 'Courier New', italics: true, color: '888888', size: 18 })],
+                        spacing: { before: 120, after: 40 },
+                    })
+                )
+            }
+            const codeLines = token.text.split('\n')
+            codeLines.forEach((line, i) => {
+                elements.push(
+                    new Paragraph({
+                        children: [new TextRun({ text: line || ' ', font: 'Courier New', size: 18 })],
                         shading: { fill: 'F5F5F5' },
-                        spacing: { after: 40 },
+                        spacing: { after: 0 },
                     })
                 )
             })
+            elements.push(new Paragraph({ children: [], spacing: { after: 80 } }))
         } else if (token.type === 'blockquote') {
             if (token.tokens) {
-                const quoteParagraphs = tokensToDocxParagraphs(token.tokens, level)
-                quoteParagraphs.forEach(p => {
-                    paragraphs.push(p)
+                const quoteElements = tokensToDocxElements(token.tokens, level)
+                quoteElements.forEach(el => {
+                    if (el instanceof Paragraph) {
+                        // Add indent and simulate left border via shading
+                        elements.push(
+                            new Paragraph({
+                                children: el.root || el,
+                                indent: { left: 720 },
+                                shading: { fill: 'F0F0F0', color: 'CCCCCC' },
+                                spacing: el.spacing || { after: 80 },
+                            })
+                        )
+                    } else {
+                        elements.push(el)
+                    }
                 })
             }
         } else if (token.type === 'table') {
-            // Simple table rendering
             if (token.header && token.rows) {
                 const allRows = [token.header, ...token.rows]
+                const colCount = token.header.length
+                const colWidth = Math.floor(9000 / colCount)
                 const tableRows = allRows.map((row, rowIndex) =>
                     new TableRow({
                         children: row.map(cell =>
@@ -185,20 +212,25 @@ function tokensToDocxParagraphs(tokens, level = 0) {
                                     children: createTextRuns(cell.tokens),
                                     spacing: { after: 40 },
                                 })],
-                                width: { size: 3000, type: WidthType.DXA },
+                                width: { size: colWidth, type: WidthType.DXA },
                             })
                         ),
                     })
                 )
-                paragraphs.push(
-                    new Paragraph({ children: [] }) // spacer
+                elements.push(
+                    new Table({
+                        rows: tableRows,
+                        width: { size: 9000, type: WidthType.DXA },
+                    })
                 )
+                elements.push(new Paragraph({ children: [], spacing: { after: 80 } }))
             }
         } else if (token.type === 'hr') {
-            paragraphs.push(
+            elements.push(
                 new Paragraph({
                     children: [new TextRun({ text: '────────────────────────────', color: 'CCCCCC' })],
-                    spacing: { before: 120, after: 120 },
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 200, after: 200 },
                 })
             )
         } else if (token.type === 'space') {
@@ -207,7 +239,7 @@ function tokensToDocxParagraphs(tokens, level = 0) {
             // Fallback: try to extract text
             const rawText = token.raw || token.text || ''
             if (rawText.trim()) {
-                paragraphs.push(
+                elements.push(
                     new Paragraph({
                         children: [new TextRun({ text: rawText, font: 'Arial' })],
                         spacing: { after: 120 },
@@ -217,7 +249,25 @@ function tokensToDocxParagraphs(tokens, level = 0) {
         }
     }
 
-    return paragraphs
+    return elements
+}
+
+// Flatten nested tokens (e.g. paragraph > list) into a single array
+function flattenTokens(tokens) {
+    if (!tokens) return []
+    const result = []
+    for (const token of tokens) {
+        if (token.type === 'text' || token.type === 'strong' || token.type === 'em' ||
+            token.type === 'codespan' || token.type === 'link' || token.type === 'br' ||
+            token.type === 'image' || token.type === 'del') {
+            result.push(token)
+        } else if (token.type === 'paragraph' && token.tokens) {
+            result.push(...flattenTokens(token.tokens))
+        } else {
+            result.push(token)
+        }
+    }
+    return result
 }
 
 // Convert Markdown to Word
@@ -229,9 +279,9 @@ async function convertToWord() {
 
     try {
         const tokens = marked.lexer(markdownInput.value)
-        const paragraphs = tokensToDocxParagraphs(tokens)
+        const elements = tokensToDocxElements(tokens)
 
-        if (paragraphs.length === 0) {
+        if (elements.length === 0) {
             error.value = t('markdown.emptyResult')
             isProcessing.value = false
             return
@@ -240,7 +290,7 @@ async function convertToWord() {
         const doc = new Document({
             sections: [{
                 properties: {},
-                children: paragraphs,
+                children: elements,
             }],
         })
 
