@@ -5,6 +5,7 @@ import WatermarkRemover from "../components/WatermarkRemover.vue";
 import ImageCompressor from "../components/ImageCompressor.vue";
 import VideoExtractor from "../components/VideoExtractor.vue";
 import MarkdownWordConverter from "../components/MarkdownWordConverter.vue";
+import MarkdownDocLayout from "../views/MarkdownDocLayout.vue";
 import { SEO_META } from "./seo";
 
 const routes = [
@@ -48,7 +49,7 @@ const routes = [
   },
   {
     path: "/markdown-word-converter",
-    component: ToolPageLayout,
+    component: MarkdownDocLayout,
     children: [
       {
         path: "",
