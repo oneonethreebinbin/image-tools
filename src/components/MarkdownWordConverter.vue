@@ -372,21 +372,25 @@ async function renderMermaidToPng(code) {
     const ctx = canvas.getContext('2d')
     ctx.scale(scale, scale)
     const img = new Image()
-    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
-    const url = URL.createObjectURL(svgBlob)
+    // Use data URL instead of blob URL to avoid tainted canvas
+    const svgBase64 = btoa(unescape(encodeURIComponent(svg)))
+    const dataUrl = `data:image/svg+xml;base64,${svgBase64}`
     return new Promise((resolve, reject) => {
         img.onload = () => {
-            ctx.fillStyle = 'white'
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
-            ctx.drawImage(img, 0, 0, width, height)
-            URL.revokeObjectURL(url)
-            canvas.toBlob((blob) => {
-                if (blob) resolve(blob)
-                else reject(new Error('Failed to create PNG blob'))
-            }, 'image/png')
+            try {
+                ctx.fillStyle = 'white'
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+                ctx.drawImage(img, 0, 0, width, height)
+                canvas.toBlob((blob) => {
+                    if (blob) resolve(blob)
+                    else reject(new Error('Failed to create PNG blob'))
+                }, 'image/png')
+            } catch (e) {
+                reject(e)
+            }
         }
-        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load SVG')) }
-        img.src = url
+        img.onerror = () => { reject(new Error('Failed to load SVG')) }
+        img.src = dataUrl
     })
 }
 
