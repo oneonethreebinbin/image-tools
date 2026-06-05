@@ -4,7 +4,8 @@ import { I18N_KEY } from '../i18n'
 import AdSenseSlot from './AdSenseSlot.vue'
 import {
     Document, Packer, Paragraph, TextRun, HeadingLevel,
-    AlignmentType, TableCell, TableRow, Table, WidthType, ImageRun
+    AlignmentType, TableCell, TableRow, Table, WidthType, ImageRun,
+    BorderStyle
 } from 'docx'
 import { saveAs } from 'file-saver'
 import { marked } from 'marked'
@@ -130,34 +131,53 @@ function getHeadingLevel(token) {
     return map[token.depth] || HeadingLevel.HEADING_1
 }
 
-// Create TextRun from inline tokens
-function createTextRuns(tokens) {
-    if (!tokens) return [new TextRun('')]
-    return tokens.map(token => {
+// Create TextRun from inline tokens with nested formatting support
+function createTextRuns(tokens, overrides = {}) {
+    if (!tokens) return [new TextRun({ text: '', ...overrides })]
+    const runs = []
+    for (const token of tokens) {
         if (token.type === 'text') {
-            return new TextRun({ text: token.text, font: 'Arial' })
+            runs.push(new TextRun({ text: token.text, font: 'Arial', ...overrides }))
         } else if (token.type === 'strong') {
-            return new TextRun({ text: token.text, bold: true, font: 'Arial' })
+            if (token.tokens && token.tokens.length > 0) {
+                runs.push(...createTextRuns(token.tokens, { ...overrides, bold: true }))
+            } else {
+                runs.push(new TextRun({ text: token.text, bold: true, font: 'Arial', ...overrides }))
+            }
         } else if (token.type === 'em') {
-            return new TextRun({ text: token.text, italics: true, font: 'Arial' })
+            if (token.tokens && token.tokens.length > 0) {
+                runs.push(...createTextRuns(token.tokens, { ...overrides, italics: true }))
+            } else {
+                runs.push(new TextRun({ text: token.text, italics: true, font: 'Arial', ...overrides }))
+            }
+        } else if (token.type === 'del') {
+            if (token.tokens && token.tokens.length > 0) {
+                runs.push(...createTextRuns(token.tokens, { ...overrides, strike: true }))
+            } else {
+                runs.push(new TextRun({ text: token.text, strike: true, font: 'Arial', ...overrides }))
+            }
         } else if (token.type === 'codespan') {
-            return new TextRun({ text: token.text, font: 'Courier New', shading: { fill: 'E8E8E8' } })
+            runs.push(new TextRun({ text: token.text, font: 'Courier New', shading: { fill: 'F3F4F6' }, color: 'E11D48', size: 20, ...overrides }))
         } else if (token.type === 'link') {
-            return new TextRun({ text: token.text || token.href, color: '0563C1', underline: {}, font: 'Arial' })
+            if (token.tokens && token.tokens.length > 0) {
+                runs.push(...createTextRuns(token.tokens, { ...overrides, color: '4F46E5', underline: { type: 'single' } }))
+            } else {
+                runs.push(new TextRun({ text: token.text || token.href, color: '4F46E5', underline: { type: 'single' }, font: 'Arial', ...overrides }))
+            }
         } else if (token.type === 'br') {
-            return new TextRun({ break: 1 })
-        } else if (token.type === 'list') {
-            return new TextRun({ text: token.items?.map(i => i.text).join(', ') || '' })
-        } else if (token.type === 'code') {
-            return new TextRun({ text: token.text, font: 'Courier New' })
+            runs.push(new TextRun({ break: 1, ...overrides }))
         } else if (token.type === 'image') {
-            return new TextRun({ text: `[Image: ${token.text || 'image'}]`, italics: true, color: '888888' })
+            runs.push(new TextRun({ text: `[图片: ${token.text || 'image'}]`, italics: true, color: '9CA3AF', ...overrides }))
         } else if (token.type === 'space') {
-            return new TextRun('')
+            // skip space tokens
         } else {
-            return new TextRun({ text: token.text || token.raw || '', font: 'Arial' })
+            const text = token.text || token.raw || ''
+            if (text.trim()) {
+                runs.push(new TextRun({ text, font: 'Arial', ...overrides }))
+            }
         }
-    })
+    }
+    return runs.length > 0 ? runs : [new TextRun({ text: '', ...overrides })]
 }
 
 // Parse tokens into docx paragraphs and elements
@@ -170,16 +190,15 @@ async function tokensToDocxElements(tokens, level = 0) {
                 new Paragraph({
                     children: createTextRuns(token.tokens),
                     heading: getHeadingLevel(token),
-                    spacing: { before: 240, after: 120 },
+                    spacing: { before: 360, after: 200 },
                 })
             )
         } else if (token.type === 'paragraph') {
-            // Flatten nested tokens (e.g. list inside paragraph)
             const flatTokens = flattenTokens(token.tokens)
             elements.push(
                 new Paragraph({
                     children: createTextRuns(flatTokens),
-                    spacing: { after: 120 },
+                    spacing: { after: 160, line: 360 },
                 })
             )
         } else if (token.type === 'list') {
@@ -236,72 +255,95 @@ async function tokensToDocxElements(tokens, level = 0) {
                     )
                 }
             } else {
-                // Regular code block with background
+                // Regular code block with border and background
                 const lang = token.lang ? ` (${token.lang})` : ''
                 if (lang) {
                     elements.push(
                         new Paragraph({
-                            children: [new TextRun({ text: lang.trim(), font: 'Courier New', italics: true, color: '888888', size: 18 })],
-                            spacing: { before: 120, after: 40 },
+                            children: [new TextRun({ text: lang.trim(), font: 'Courier New', italics: true, color: '6B7280', size: 18 })],
+                            spacing: { before: 160, after: 40 },
                         })
                     )
                 }
                 const codeLines = token.text.split('\n')
-                codeLines.forEach((line) => {
+                codeLines.forEach((line, idx) => {
+                    const isFirst = idx === 0
+                    const isLast = idx === codeLines.length - 1
                     elements.push(
                         new Paragraph({
-                            children: [new TextRun({ text: line || ' ', font: 'Courier New', size: 18 })],
-                            shading: { fill: 'F5F5F5' },
-                            spacing: { after: 0 },
+                            children: [new TextRun({ text: line || ' ', font: 'Courier New', size: 18, color: '1F2937' })],
+                            shading: { fill: 'F3F4F6' },
+                            border: {
+                                left: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                                right: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                                ...(isFirst ? { top: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' } } : {}),
+                                ...(isLast ? { bottom: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' } } : {}),
+                            },
+                            indent: { left: 120, right: 120 },
+                            spacing: { after: 0, before: isFirst ? 40 : 0, line: 276 },
                         })
                     )
                 })
-                elements.push(new Paragraph({ children: [], spacing: { after: 80 } }))
+                elements.push(new Paragraph({ children: [], spacing: { after: 160 } }))
             }
         } else if (token.type === 'blockquote') {
             if (token.tokens) {
-                const quoteElements = await tokensToDocxElements(token.tokens, level)
-                quoteElements.forEach(el => {
-                    if (el instanceof Paragraph) {
-                        // Add indent and simulate left border via shading
+                for (const innerToken of token.tokens) {
+                    if (innerToken.type === 'paragraph' && innerToken.tokens) {
+                        const flatTokens = flattenTokens(innerToken.tokens)
                         elements.push(
                             new Paragraph({
-                                children: el.root || el,
-                                indent: { left: 720 },
-                                shading: { fill: 'F0F0F0', color: 'CCCCCC' },
-                                spacing: el.spacing || { after: 80 },
+                                children: createTextRuns(flatTokens, { italics: true, color: '4B5563' }),
+                                indent: { left: 480 },
+                                border: {
+                                    left: { style: BorderStyle.SINGLE, size: 12, color: '6366F1', space: 8 },
+                                },
+                                shading: { fill: 'F5F3FF' },
+                                spacing: { after: 120, line: 360 },
                             })
                         )
                     } else {
-                        elements.push(el)
+                        const nestedElements = await tokensToDocxElements([innerToken], level)
+                        elements.push(...nestedElements)
                     }
-                })
+                }
             }
         } else if (token.type === 'table') {
             if (token.header && token.rows) {
                 const allRows = [token.header, ...token.rows]
                 const colCount = token.header.length
                 const colWidth = Math.floor(9000 / colCount)
-                const tableRows = allRows.map((row, rowIndex) =>
-                    new TableRow({
+                const tableRows = allRows.map((row, rowIndex) => {
+                    const isHeader = rowIndex === 0
+                    return new TableRow({
+                        tableHeader: isHeader,
                         children: row.map(cell =>
                             new TableCell({
                                 children: [new Paragraph({
-                                    children: createTextRuns(cell.tokens),
-                                    spacing: { after: 40 },
+                                    children: createTextRuns(cell.tokens, isHeader ? { bold: true, color: '1F2937' } : {}),
+                                    spacing: { after: 40, before: 40 },
                                 })],
                                 width: { size: colWidth, type: WidthType.DXA },
+                                shading: isHeader ? { fill: 'F3F4F6' } : undefined,
                             })
                         ),
                     })
-                )
+                })
                 elements.push(
                     new Table({
                         rows: tableRows,
                         width: { size: 9000, type: WidthType.DXA },
+                        borders: {
+                            top: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                            bottom: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                            left: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                            right: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                            insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                            insideVertical: { style: BorderStyle.SINGLE, size: 1, color: 'D1D5DB' },
+                        },
                     })
                 )
-                elements.push(new Paragraph({ children: [], spacing: { after: 80 } }))
+                elements.push(new Paragraph({ children: [], spacing: { after: 160 } }))
             }
         } else if (token.type === 'hr') {
             elements.push(
@@ -412,8 +454,67 @@ async function convertToWord() {
         }
 
         const doc = new Document({
+            styles: {
+                default: {
+                    document: {
+                        run: {
+                            font: 'Arial',
+                            size: 22,
+                            color: '374151',
+                        },
+                        paragraph: {
+                            spacing: { line: 360, after: 120 },
+                        },
+                    },
+                    heading1: {
+                        run: {
+                            font: 'Arial',
+                            size: 36,
+                            bold: true,
+                            color: '111827',
+                        },
+                        paragraph: {
+                            spacing: { before: 400, after: 200 },
+                            border: {
+                                bottom: { style: BorderStyle.SINGLE, size: 2, color: 'E5E7EB', space: 4 },
+                            },
+                        },
+                    },
+                    heading2: {
+                        run: {
+                            font: 'Arial',
+                            size: 30,
+                            bold: true,
+                            color: '1F2937',
+                        },
+                        paragraph: {
+                            spacing: { before: 320, after: 160 },
+                        },
+                    },
+                    heading3: {
+                        run: {
+                            font: 'Arial',
+                            size: 26,
+                            bold: true,
+                            color: '374151',
+                        },
+                        paragraph: {
+                            spacing: { before: 280, after: 120 },
+                        },
+                    },
+                },
+            },
             sections: [{
-                properties: {},
+                properties: {
+                    page: {
+                        margin: {
+                            top: 1440,
+                            right: 1440,
+                            bottom: 1440,
+                            left: 1440,
+                        },
+                    },
+                },
                 children: elements,
             }],
         })
